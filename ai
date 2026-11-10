@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Business {
+  id            String         @id @default(uuid())
+  name          String
+  slug          String         @unique
+  services      Service[]
+  workingHours  WorkingHours[]
+  appointments  Appointment[]
+  createdAt     DateTime       @default(now())
+}
+
+model Service {
+  id              String         @id @default(uuid())
+  businessId      String
+  business        Business       @relation(fields: [businessId], references: [id])
+  name            String
+  durationMinutes Int
+  price           Float
+  appointments    Appointment[]
+}
+
+model WorkingHours {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+  dayOfWeek  Int      // 0 (یکشنبه) تا 6 (شنبه)
+  startTime  String   // مثال: "09:00"
+  endTime    String   // مثال: "20:00"
+}
+
+model User {
+  id           String         @id @default(uuid())
+  phone        String         @unique
+  name         String?
+  appointments Appointment[]
+  createdAt    DateTime       @default(now())
+}
+
+model Appointment {
+  id          String            @id @default(uuid())
+  businessId  String
+  business    Business          @relation(fields: [businessId], references: [id])
+  userId      String
+  user        User              @relation(fields: [userId], references: [id])
+  serviceId   String
+  service     Service           @relation(fields: [serviceId], references: [id])
+  startTime   DateTime
+  endTime     DateTime
+  status      AppointmentStatus @default(PENDING)
+  createdAt   DateTime          @default(now())
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  RESCHEDULED
+}generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Business {
+  id            String         @id @default(uuid())
+  name          String
+  slug          String         @unique
+  services      Service[]
+  workingHours  WorkingHours[]
+  appointments  Appointment[]
+  createdAt     DateTime       @default(now())
+}
+
+model Service {
+  id              String         @id @default(uuid())
+  businessId      String
+  business        Business       @relation(fields: [businessId], references: [id])
+  name            String
+  durationMinutes Int
+  price           Float
+  appointments    Appointment[]
+}
+
+model WorkingHours {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+  dayOfWeek  Int      // 0 (یکشنبه) تا 6 (شنبه)
+  startTime  String   // مثال: "09:00"
+  endTime    String   // مثال: "20:00"
+}
+
+model User {
+  id           String         @id @default(uuid())
+  phone        String         @unique
+  name         String?
+  appointments Appointment[]
+  createdAt    DateTime       @default(now())
+}
+
+model Appointment {
+  id          String            @id @default(uuid())
+  businessId  String
+  business    Business          @relation(fields: [businessId], references: [id])
+  userId      String
+  user        User              @relation(fields: [userId], references: [id])
+  serviceId   String
+  service     Service           @relation(fields: [serviceId], references: [id])
+  startTime   DateTime
+  endTime     DateTime
+  status      AppointmentStatus @default(PENDING)
+  createdAt   DateTime          @default(now())
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  RESCHEDULED
+}

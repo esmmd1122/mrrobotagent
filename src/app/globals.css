@@ -1,0 +1,82 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-mr-black: #050506;
+  --color-mr-charcoal: #121318;
+  --color-mr-surface: #1a1b22;
+  --color-mr-border: #2a2b35;
+  --color-mr-red: #e10600;
+  --color-mr-red-dim: #8b0a08;
+  --color-mr-red-glow: rgba(225, 6, 0, 0.45);
+  --color-mr-muted: #9ca3af;
+  --font-sans: var(--font-vazirmatn), system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-mr-black text-white antialiased;
+    font-family: var(--font-sans);
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-mr-red) 35%, transparent);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .glass-nav {
+    background: color-mix(in srgb, var(--color-mr-charcoal) 82%, transparent);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-mr-border) 70%, transparent);
+  }
+
+  .section-glow {
+    background: radial-gradient(
+      ellipse 80% 50% at 50% 0%,
+      color-mix(in srgb, var(--color-mr-red) 12%, transparent),
+      transparent 70%
+    );
+  }
+
+  .card-shop {
+    @apply rounded-2xl border border-mr-border bg-mr-surface/80;
+    box-shadow: 0 0 0 1px color-mix(in srgb, white 4%, transparent);
+  }
+
+  .card-ai {
+    @apply rounded-2xl border border-mr-red/20 bg-gradient-to-br from-mr-charcoal to-mr-black;
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--color-mr-red) 15%, transparent),
+      0 24px 48px -24px color-mix(in srgb, var(--color-mr-red) 25%, transparent);
+  }
+
+  .eye-pulse {
+    animation: eye-pulse 3.2s ease-in-out infinite;
+  }
+
+  @keyframes eye-pulse {
+    0%,
+    100% {
+      opacity: 0.35;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.65;
+      transform: scale(1.08);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .eye-pulse {
+      animation: none;
+    }
+  }
+}
