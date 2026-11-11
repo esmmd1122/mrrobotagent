@@ -7,20 +7,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// --- Legacy salon / booking (chat demo) ---
 model Business {
-  id            String         @id @default(uuid())
-  name          String
-  slug          String         @unique
-  services      Service[]
-  workingHours  WorkingHours[]
-  appointments  Appointment[]
-  createdAt     DateTime       @default(now())
+  id           String         @id @default(uuid())
+  name         String
+  slug         String         @unique
+  services     Service[]
+  workingHours WorkingHours[]
+  appointments Appointment[]
+  createdAt    DateTime       @default(now())
 }
 
 model Service {
-  id              String         @id @default(uuid())
+  id              String        @id @default(uuid())
   businessId      String
-  business        Business       @relation(fields: [businessId], references: [id])
+  business        Business      @relation(fields: [businessId], references: [id])
   name            String
   durationMinutes Int
   price           Float
@@ -31,29 +32,307 @@ model WorkingHours {
   id         String   @id @default(uuid())
   businessId String
   business   Business @relation(fields: [businessId], references: [id])
-  dayOfWeek  Int      // 0 (یکشنبه) تا 6 (شنبه)
-  startTime  String   // مثال: "09:00"
-  endTime    String   // مثال: "20:00"
+  dayOfWeek  Int
+  startTime  String
+  endTime    String
 }
 
 model User {
-  id           String         @id @default(uuid())
-  phone        String         @unique
+  id           String        @id @default(uuid())
+  phone        String        @unique
   name         String?
   appointments Appointment[]
-  createdAt    DateTime       @default(now())
+  createdAt    DateTime      @default(now())
 }
 
 model Appointment {
-  id          String            @id @default(uuid())
-  businessId  String
-  business    Business          @relation(fields: [businessId], references: [id])
-  userId      String
-  user        User              @relation(fields: [userId], references: [id])
-  serviceId   String
-  service     Service           @relation(fields: [serviceId], references: [id])
-  startTime   DateTime
-  endTime     DateTime
-  status      String            @default("PENDING")
-  createdAt   DateTime          @default(now())
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  serviceId  String
+  service    Service  @relation(fields: [serviceId], references: [id])
+  startTime  DateTime
+  endTime    DateTime
+  status     String   @default("PENDING")
+  createdAt  DateTime @default(now())
+}
+
+// --- Admin & RBAC ---
+model AdminRole {
+  id          String      @id @default(uuid())
+  name        String
+  slug        String      @unique
+  description String?
+  permissions String
+  admins      AdminUser[]
+  createdAt   DateTime    @default(now())
+}
+
+model AdminUser {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  passwordHash String
+  name         String
+  roleId       String
+  role         AdminRole     @relation(fields: [roleId], references: [id])
+  isActive     Boolean       @default(true)
+  lastLoginAt  DateTime?
+  activityLogs ActivityLog[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model ActivityLog {
+  id        String     @id @default(uuid())
+  adminId   String?
+  admin     AdminUser? @relation(fields: [adminId], references: [id])
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  String?
+  ipAddress String?
+  createdAt DateTime   @default(now())
+}
+
+// --- Catalog ---
+model ProductCategory {
+  id        String    @id @default(uuid())
+  slug      String    @unique
+  nameFa    String
+  nameEn    String?
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Product {
+  id            String          @id @default(uuid())
+  categoryId    String
+  category      ProductCategory @relation(fields: [categoryId], references: [id])
+  slug          String          @unique
+  nameFa        String
+  nameEn        String?
+  description   String
+  detailsJson   String          @default("[]")
+  featuresJson  String          @default("[]")
+  price         Float?
+  promoPrice    Float?
+  currency      String          @default("IRR")
+  imageUrl      String?
+  isAvailable   Boolean         @default(true)
+  isFeatured    Boolean         @default(false)
+  isVisible     Boolean         @default(true)
+  sortOrder     Int             @default(0)
+  orderItems    OrderItem[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+// --- Customers & orders ---
+model Customer {
+  id           String    @id @default(uuid())
+  name         String
+  email        String?
+  phone        String?
+  status       String    @default("ACTIVE")
+  orders       Order[]
+  aiRequests   AIServiceRequest[]
+  tickets      SupportTicket[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([email])
+  @@index([phone])
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  orderNumber     String      @unique
+  customerId      String
+  customer        Customer    @relation(fields: [customerId], references: [id])
+  status          String      @default("PENDING_PAYMENT")
+  paymentStatus   String      @default("UNPAID")
+  totalAmount     Float       @default(0)
+  currency        String      @default("IRR")
+  adminNotes      String?
+  deliveryInfo    String?
+  items           OrderItem[]
+  payments        Payment[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id])
+  productName String
+  quantity    Int      @default(1)
+  unitPrice   Float
+  lineTotal   Float
+}
+
+// --- Payments (gateway-ready) ---
+model Payment {
+  id              String               @id @default(uuid())
+  orderId         String
+  order           Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider        String
+  status          String               @default("INITIATED")
+  amount          Float
+  currency        String               @default("IRR")
+  referenceId     String?
+  idempotencyKey  String?              @unique
+  refundStatus    String               @default("NONE")
+  verifiedAt      DateTime?
+  failureReason   String?
+  transactions    PaymentTransaction[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+model PaymentTransaction {
+  id          String   @id @default(uuid())
+  paymentId   String
+  payment     Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  type        String
+  status      String
+  rawPayload  String?
+  createdAt   DateTime @default(now())
+}
+
+model PaymentGatewayConfig {
+  id        String   @id @default(uuid())
+  provider  String   @unique
+  isEnabled Boolean  @default(false)
+  settings  String   @default("{}")
+  updatedAt DateTime @updatedAt
+}
+
+// --- MR.ROBOT AI ---
+model AIServiceOffering {
+  id          String             @id @default(uuid())
+  slug        String             @unique
+  titleFa     String
+  description String
+  useCase     String
+  price       Float?
+  isAvailable Boolean            @default(true)
+  sortOrder   Int                @default(0)
+  requests    AIServiceRequest[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model AIServiceRequest {
+  id          String             @id @default(uuid())
+  customerId  String?
+  customer    Customer?          @relation(fields: [customerId], references: [id])
+  offeringId  String?
+  offering    AIServiceOffering? @relation(fields: [offeringId], references: [id])
+  title       String
+  description String
+  status      String             @default("NEW")
+  delivery    String?
+  contact     String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+// --- Support ---
+model SupportTicket {
+  id         String            @id @default(uuid())
+  customerId String?
+  customer   Customer?         @relation(fields: [customerId], references: [id])
+  subject    String
+  category   String            @default("GENERAL")
+  priority   String            @default("NORMAL")
+  status     String            @default("OPEN")
+  messages   SupportMessage[]
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+}
+
+model SupportMessage {
+  id          String        @id @default(uuid())
+  ticketId    String
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  senderType  String
+  senderName  String
+  body        String
+  createdAt   DateTime      @default(now())
+}
+
+// --- CMS (legacy key-value; migrated into WebsiteSettings on init) ---
+model SiteContent {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  section   String
+  valueJson String
+  updatedAt DateTime @updatedAt
+}
+
+// --- Visual website editor (draft / publish) ---
+model WebsiteSettings {
+  id              String    @id @default("default")
+  draftConfig     String
+  publishedConfig String
+  publishedAt     DateTime?
+  updatedAt       DateTime  @updatedAt
+}
+
+model WebsiteSettingsRevision {
+  id          String    @id @default(uuid())
+  configJson  String
+  label       String?
+  adminId     String?
+  createdAt   DateTime  @default(now())
+}
+
+model MediaAsset {
+  id         String   @id @default(uuid())
+  filename   String
+  url        String
+  mimeType   String
+  sizeBytes  Int
+  width      Int?
+  height     Int?
+  altText    String?
+  createdAt  DateTime @default(now())
+}
+
+model SitePage {
+  id              String    @id @default(uuid())
+  slug            String    @unique
+  title           String
+  metaTitle       String?
+  metaDescription String?
+  heroImageUrl    String?
+  bodyHtml        String    @default("")
+  status          String    @default("DRAFT")
+  publishedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// --- Promotions ---
+model DiscountCode {
+  id              String    @id @default(uuid())
+  code            String    @unique
+  type            String
+  value           Float
+  productIdsJson  String    @default("[]")
+  usageLimit      Int?
+  usageCount      Int       @default(0)
+  startsAt        DateTime?
+  expiresAt       DateTime?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }

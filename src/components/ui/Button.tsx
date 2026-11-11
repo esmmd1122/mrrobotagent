@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'outline'
 
@@ -24,6 +24,7 @@ type ButtonProps = {
   className?: string
   type?: 'button' | 'submit'
   ariaLabel?: string
+  style?: CSSProperties
 }
 
 export function Button({
@@ -34,6 +35,7 @@ export function Button({
   className = '',
   type = 'button',
   ariaLabel,
+  style,
 }: ButtonProps) {
   const base =
     'inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mr-red'
@@ -43,7 +45,7 @@ export function Button({
   if (href) {
     return (
       <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-        <Link href={href} className={classes} aria-label={ariaLabel}>
+        <Link href={href} className={classes} aria-label={ariaLabel} style={style}>
           {children}
         </Link>
       </motion.div>
@@ -56,6 +58,7 @@ export function Button({
       onClick={onClick}
       className={classes}
       aria-label={ariaLabel}
+      style={style}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
     >

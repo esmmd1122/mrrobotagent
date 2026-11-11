@@ -5,13 +5,22 @@ import { otherServices } from '@/data/otherServices'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { Button } from '@/components/ui/Button'
 
-export function OtherServicesSection() {
+export function OtherServicesSection({
+  title,
+  description,
+}: {
+  title?: string
+  description?: string
+}) {
   return (
     <section id="other" className="border-t border-mr-border py-20 sm:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeader
-          title="سایر خدمات دیجیتال"
-          description="خدمات تکمیلی برای اکوسیستم Apple و تلگرام — بدون نیاز به جستجوی پراکنده."
+          title={title || 'سایر خدمات دیجیتال'}
+          description={
+            description ||
+            'خدمات تکمیلی برای اکوسیستم Apple و تلگرام — بدون نیاز به جستجوی پراکنده.'
+          }
         />
 
         <div className="mt-12 grid gap-6 lg:grid-cols-3">

@@ -6,7 +6,13 @@ import { SectionHeader } from '@/components/ui/SectionHeader'
 import { ServiceIcon } from '@/components/icons/ServiceIcons'
 import { Button } from '@/components/ui/Button'
 
-export function AIServicesSection() {
+export function AIServicesSection({
+  title,
+  description,
+}: {
+  title?: string
+  description?: string
+}) {
   return (
     <section id="ai" className="relative overflow-hidden py-20 sm:py-28">
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-mr-black via-[#0d0e14] to-mr-black" />
@@ -22,8 +28,8 @@ export function AIServicesSection() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeader
           titleEn="MR.ROBOT AI"
-          title="MR.ROBOT AI"
-          description="راهکارهای هوشمند برای زندگی و کسب‌وکار"
+          title={title || 'MR.ROBOT AI'}
+          description={description || 'راهکارهای هوشمند برای زندگی و کسب‌وکار'}
           align="center"
         />
 

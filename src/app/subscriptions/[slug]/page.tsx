@@ -1,29 +1,35 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { getProductBySlug, subscriptionProducts } from '@/data/products'
+import { getProductBySlugFromDb } from '@/lib/catalog'
 import { ProductLogo } from '@/components/ui/ProductLogo'
 import { Button } from '@/components/ui/Button'
 
 type Props = { params: Promise<{ slug: string }> }
 
-export function generateStaticParams() {
-  return subscriptionProducts.map((p) => ({ slug: p.slug }))
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const product = getProductBySlug(slug)
+  const product = await getProductBySlugFromDb(slug)
   if (!product) return { title: 'اشتراک' }
   return {
-    title: product.name,
+    title: product.nameFa,
     description: product.description,
   }
 }
 
 export default async function SubscriptionDetailPage({ params }: Props) {
   const { slug } = await params
-  const product = getProductBySlug(slug)
+  const product = await getProductBySlugFromDb(slug)
   if (!product) notFound()
+
+  let details: string[] = []
+  let features: string[] = []
+  try {
+    details = JSON.parse(product.detailsJson)
+    features = JSON.parse(product.featuresJson)
+  } catch {
+    details = []
+    features = []
+  }
 
   return (
     <div className="pt-24 pb-20">
@@ -32,7 +38,7 @@ export default async function SubscriptionDetailPage({ params }: Props) {
           <ProductLogo slug={product.slug as 'chatgpt-plus' | 'capcut-pro' | 'grok' | 'gemini-pro'} />
           <div>
             <h1 className="text-3xl font-bold" dir="ltr">
-              {product.nameEn}
+              {product.nameEn || product.nameFa}
             </h1>
             <p className="mt-1 text-mr-muted">{product.description}</p>
           </div>
@@ -42,7 +48,7 @@ export default async function SubscriptionDetailPage({ params }: Props) {
           <div>
             <h2 className="font-semibold">جزئیات اشتراک</h2>
             <ul className="mt-3 space-y-2 text-sm text-white/90">
-              {product.details.map((d) => (
+              {details.map((d) => (
                 <li key={d}>• {d}</li>
               ))}
             </ul>
@@ -50,21 +56,24 @@ export default async function SubscriptionDetailPage({ params }: Props) {
           <div>
             <h2 className="font-semibold">مزایا با MR.ROBOT</h2>
             <ul className="mt-3 space-y-2 text-sm text-white/90">
-              {product.features.map((f) => (
+              {features.map((f) => (
                 <li key={f}>• {f}</li>
               ))}
             </ul>
           </div>
           <div className="border-t border-mr-border pt-6">
-            <p className="text-sm text-mr-muted">قیمت (مدیریت از پنل آینده)</p>
-            <p className="mt-1 text-2xl font-bold">—</p>
-            <p className="mt-2 text-xs text-mr-muted">
-              قیمت نهایی و شرایط فعال‌سازی پس از تماس تأیید می‌شود.
+            <p className="text-sm text-mr-muted">قیمت</p>
+            <p className="mt-1 text-2xl font-bold">
+              {product.promoPrice != null
+                ? product.promoPrice.toLocaleString('fa-IR')
+                : product.price != null
+                  ? product.price.toLocaleString('fa-IR')
+                  : '—'}
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button
-              href={`/contact?subject=${encodeURIComponent(`خرید ${product.name}`)}`}
+              href={`/contact?subject=${encodeURIComponent(`خرید ${product.nameFa}`)}`}
               variant="primary"
             >
               درخواست خرید

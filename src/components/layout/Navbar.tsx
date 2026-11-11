@@ -4,17 +4,24 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
+import type { NavLinkConfig } from '@/lib/site-config/types'
 
-const navLinks = [
-  { href: '/#home', label: 'خانه' },
-  { href: '/#subscriptions', label: 'اشتراک‌های دیجیتال' },
-  { href: '/#ai', label: 'MR.ROBOT AI' },
-  { href: '/#other', label: 'سایر خدمات' },
-  { href: '/about', label: 'درباره MR.ROBOT' },
-  { href: '/contact', label: 'تماس' },
+const fallbackLinks: NavLinkConfig[] = [
+  { id: 'home', href: '/#home', label: 'خانه', enabled: true },
+  { id: 'subs', href: '/#subscriptions', label: 'اشتراک‌های دیجیتال', enabled: true },
+  { id: 'ai', href: '/#ai', label: 'MR.ROBOT AI', enabled: true },
+  { id: 'contact', href: '/contact', label: 'تماس', enabled: true },
 ]
 
-export function Navbar() {
+type Props = {
+  links?: NavLinkConfig[]
+  purchaseCta?: { label: string; href: string }
+}
+
+export function Navbar({ links, purchaseCta }: Props) {
+  const navLinks = (links || fallbackLinks).filter((l) => l.enabled)
+  const cta = purchaseCta || { label: 'خرید اشتراک', href: '/#subscriptions' }
+
   const [open, setOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
 
@@ -47,19 +54,18 @@ export function Navbar() {
 
         <nav className="hidden items-center gap-1 lg:flex" aria-label="منوی اصلی">
           {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="rounded-lg px-3 py-2 text-sm text-white/75 transition hover:bg-white/5 hover:text-white"
-            >
-              {link.label}
-            </Link>
+            <NavItem key={link.id} link={link} />
           ))}
         </nav>
 
         <div className="hidden lg:block">
-          <Button href="/#subscriptions" variant="primary" className="!py-2.5 !px-5 text-sm">
-            خرید اشتراک
+          <Button
+            href={cta.href}
+            variant="primary"
+            className="!py-2.5 !px-5 text-sm"
+            style={{ borderRadius: 'var(--site-btn-radius, 12px)' }}
+          >
+            {cta.label}
           </Button>
         </div>
 
@@ -90,7 +96,7 @@ export function Navbar() {
             <nav className="flex flex-col gap-1 p-4" aria-label="منوی موبایل">
               {navLinks.map((link) => (
                 <Link
-                  key={link.href}
+                  key={link.id}
                   href={link.href}
                   onClick={() => setOpen(false)}
                   className="rounded-xl px-4 py-3 text-sm text-white/90 hover:bg-white/5"
@@ -98,17 +104,50 @@ export function Navbar() {
                   {link.label}
                 </Link>
               ))}
-              <Button
-                href="/#subscriptions"
-                variant="primary"
-                className="mt-2 w-full"
-              >
-                خرید اشتراک
+              <Button href={cta.href} variant="primary" className="mt-2 w-full">
+                {cta.label}
               </Button>
             </nav>
           </motion.div>
         ) : null}
       </AnimatePresence>
     </header>
+  )
+}
+
+function NavItem({ link }: { link: NavLinkConfig }) {
+  const hasChildren = link.children && link.children.filter((c) => c.enabled).length > 0
+  if (!hasChildren) {
+    return (
+      <Link
+        href={link.href}
+        className="rounded-lg px-3 py-2 text-sm text-white/75 transition hover:bg-white/5 hover:text-white"
+      >
+        {link.label}
+      </Link>
+    )
+  }
+  return (
+    <div className="group relative">
+      <Link
+        href={link.href}
+        className="rounded-lg px-3 py-2 text-sm text-white/75 transition hover:bg-white/5 hover:text-white"
+      >
+        {link.label}
+      </Link>
+      <div className="invisible absolute right-0 top-full z-50 min-w-[180px] rounded-xl border border-mr-border bg-mr-charcoal py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100">
+        {link.children
+          ?.filter((c) => c.enabled)
+          .map((child) => (
+            <Link
+              key={child.id}
+              href={child.href}
+              className="block px-4 py-2 text-sm text-white/80 hover:bg-white/5"
+            >
+              {child.label}
+            </Link>
+          ))}
+      </div>
+    </div>
   )
 }

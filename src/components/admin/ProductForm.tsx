@@ -1,0 +1,69 @@
+import type { Product, ProductCategory } from '@prisma/client'
+
+type Props = {
+  categories: ProductCategory[]
+  product?: Product
+  action: (formData: FormData) => Promise<void>
+}
+
+export function ProductForm({ categories, product, action }: Props) {
+  const detailsDefault = product?.detailsJson || '[]'
+  const featuresDefault = product?.featuresJson || '[]'
+
+  return (
+    <form action={action} className="admin-card max-w-3xl space-y-4 p-6">
+      <select name="categoryId" className="admin-input" defaultValue={product?.categoryId} required>
+        {categories.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.nameFa}
+          </option>
+        ))}
+      </select>
+      <input name="slug" className="admin-input" placeholder="slug" defaultValue={product?.slug} required />
+      <input name="nameFa" className="admin-input" placeholder="نام فارسی" defaultValue={product?.nameFa} required />
+      <input name="nameEn" className="admin-input" placeholder="نام انگلیسی" defaultValue={product?.nameEn || ''} />
+      <textarea name="description" className="admin-input min-h-24" defaultValue={product?.description} required />
+      <textarea
+        name="detailsJson"
+        className="admin-input min-h-20 font-mono text-xs"
+        defaultValue={detailsDefault}
+        placeholder='["جزئیات ۱"]'
+      />
+      <textarea
+        name="featuresJson"
+        className="admin-input min-h-20 font-mono text-xs"
+        defaultValue={featuresDefault}
+        placeholder='["مزیت ۱"]'
+      />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <input name="price" type="number" className="admin-input" placeholder="قیمت" defaultValue={product?.price ?? ''} />
+        <input
+          name="promoPrice"
+          type="number"
+          className="admin-input"
+          placeholder="قیمت تخفیفی"
+          defaultValue={product?.promoPrice ?? ''}
+        />
+      </div>
+      <input name="imageUrl" className="admin-input" placeholder="آدرس تصویر" defaultValue={product?.imageUrl || ''} />
+      <input name="sortOrder" type="number" className="admin-input" defaultValue={product?.sortOrder ?? 0} />
+      <div className="flex flex-wrap gap-4 text-sm">
+        <label className="flex items-center gap-2">
+          <input name="isAvailable" type="checkbox" defaultChecked={product?.isAvailable ?? true} />
+          موجود
+        </label>
+        <label className="flex items-center gap-2">
+          <input name="isFeatured" type="checkbox" defaultChecked={product?.isFeatured ?? false} />
+          ویژه
+        </label>
+        <label className="flex items-center gap-2">
+          <input name="isVisible" type="checkbox" defaultChecked={product?.isVisible ?? true} />
+          نمایش در سایت
+        </label>
+      </div>
+      <button type="submit" className="rounded-xl bg-[#e10600] px-6 py-3 text-sm font-semibold">
+        ذخیره محصول
+      </button>
+    </form>
+  )
+}
