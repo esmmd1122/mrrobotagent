@@ -9,6 +9,7 @@ type Props = {
 export function ProductForm({ categories, product, action }: Props) {
   const detailsDefault = product?.detailsJson || '[]'
   const featuresDefault = product?.featuresJson || '[]'
+  const purchaseFieldsDefault = product?.purchaseFieldsJson || '[]'
 
   return (
     <form action={action} className="admin-card max-w-3xl space-y-4 p-6">
@@ -35,13 +36,33 @@ export function ProductForm({ categories, product, action }: Props) {
         defaultValue={featuresDefault}
         placeholder='["مزیت ۱"]'
       />
+      <textarea
+        name="purchaseFieldsJson"
+        className="admin-input min-h-24 font-mono text-xs"
+        defaultValue={purchaseFieldsDefault}
+        placeholder='[{"id":"telegram_id","label":"آیدی تلگرام","type":"text","required":true}]'
+      />
+      <p className="text-xs text-white/50">
+        فیلدهای اختصاصی صفحه خرید اشتراک (JSON). type: text | textarea | email
+      </p>
+      <p className="text-xs text-white/50">قیمت‌ها به تومان (بدون تبدیل ریال). خالی = تماس بگیرید / بدون خرید آنلاین.</p>
       <div className="grid gap-3 sm:grid-cols-2">
-        <input name="price" type="number" className="admin-input" placeholder="قیمت" defaultValue={product?.price ?? ''} />
+        <input
+          name="price"
+          type="number"
+          min={0}
+          step="1"
+          className="admin-input"
+          placeholder="قیمت (تومان)"
+          defaultValue={product?.price ?? ''}
+        />
         <input
           name="promoPrice"
           type="number"
+          min={0}
+          step="1"
           className="admin-input"
-          placeholder="قیمت تخفیفی"
+          placeholder="قیمت فروش ویژه (تومان)"
           defaultValue={product?.promoPrice ?? ''}
         />
       </div>

@@ -1,25 +1,56 @@
 import { getDashboardStats } from '@/lib/admin/stats'
 import { DashboardChart } from '@/components/admin/DashboardChart'
 import { ORDER_STATUS_LABELS } from '@/lib/auth/constants'
+import { prisma } from '@/lib/db'
 import Link from 'next/link'
 
 export default async function AdminDashboardPage() {
   const stats = await getDashboardStats()
+  const productPerf = stats.topProducts.map((p) => ({
+    name: p.productName,
+    qty: p._sum.quantity ?? 0,
+    revenue: p._sum.lineTotal ?? 0,
+  }))
+
+  const [businesses, appointments, aiCalls, activeSubs] = await Promise.all([
+    prisma.salonBusiness.count(),
+    prisma.salonBooking.count(),
+    prisma.salonAiUsage.count(),
+    prisma.salonSubscription.count({ where: { periodEnd: { gte: new Date() } } }),
+  ])
 
   const cards = [
     { label: 'کل سفارش‌ها', value: stats.totalOrders },
-    { label: 'در انتظار / پردازش', value: stats.pendingOrders },
+    { label: 'پرداخت‌نشده', value: stats.unpaidOrders },
+    { label: 'پرداخت‌شده', value: stats.paidOrders },
+    { label: 'تحویل در صف', value: stats.pendingFulfillment },
     { label: 'تکمیل‌شده', value: stats.completedOrders },
     { label: 'مشتریان', value: stats.totalCustomers },
     { label: 'محصولات فعال', value: stats.totalProducts },
     {
-      label: 'درآمد پرداخت‌شده',
+      label: 'درآمد واقعی (PAID)',
       value: stats.totalRevenue.toLocaleString('fa-IR'),
     },
   ]
 
   return (
     <div className="space-y-6">
+      <section className="admin-card relative overflow-hidden p-6">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="mr-kicker">MR.ROBOT AI</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight">مرکز فرمان پلتفرم</h1>
+            <p className="mt-2 max-w-xl text-sm text-[#9297A3]">وضعیت واقعی فروشگاه، سالن‌ها و مصرف ایجنت. هیچ عدد ساختگی نمایش داده نمی‌شود.</p>
+          </div>
+          <img src="/images/mr-robot-character.png" alt="" className="mr-float h-24 w-24 object-contain" />
+        </div>
+      </section>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="سالن‌ها" value={businesses} />
+        <StatCard label="اشتراک فعال سالن" value={activeSubs} />
+        <StatCard label="نوبت‌های ثبت‌شده" value={appointments} />
+        <StatCard label="فراخوانی AI" value={aiCalls} />
+      </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {cards.map((c) => (
           <StatCard key={c.label} {...c} />
@@ -30,6 +61,30 @@ export default async function AdminDashboardPage() {
         <h2 className="font-semibold">تحلیل ۳۰ روز اخیر</h2>
         <DashboardChart data={stats.chart} />
       </section>
+
+      {productPerf.length > 0 ? (
+        <section className="admin-card p-4">
+          <h2 className="mb-3 font-semibold">عملکرد محصولات (بر اساس آیتم‌های سفارش)</h2>
+          <table className="admin-table w-full text-sm">
+            <thead>
+              <tr>
+                <th>محصول</th>
+                <th>تعداد</th>
+                <th>مجموع خط</th>
+              </tr>
+            </thead>
+            <tbody>
+              {productPerf.map((p) => (
+                <tr key={p.name}>
+                  <td>{p.name}</td>
+                  <td>{p.qty}</td>
+                  <td>{p.revenue.toLocaleString('fa-IR')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
 
       <TwoColumnSection
         leftTitle="آخرین سفارش‌ها"
@@ -89,8 +144,8 @@ export default async function AdminDashboardPage() {
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="admin-card p-4">
-      <p className="text-xs text-white/50">{label}</p>
-      <p className="mt-2 text-2xl font-bold">{value}</p>
+      <p className="text-xs text-[#9297A3]">{label}</p>
+      <p className="mr-metric mt-2">{value}</p>
     </div>
   )
 }

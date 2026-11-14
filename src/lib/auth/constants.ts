@@ -12,6 +12,7 @@ export const PERMISSIONS = {
   DISCOUNTS_MANAGE: 'discounts:manage',
   ADMINS_MANAGE: 'admins:manage',
   ACTIVITY_VIEW: 'activity:view',
+  PLATFORM_MANAGE: 'platform:manage',
 } as const
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]

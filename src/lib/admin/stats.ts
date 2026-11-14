@@ -5,6 +5,9 @@ export async function getDashboardStats() {
     totalOrders,
     pendingOrders,
     completedOrders,
+    unpaidOrders,
+    paidOrders,
+    pendingFulfillment,
     totalCustomers,
     totalProducts,
     revenueAgg,
@@ -12,12 +15,21 @@ export async function getDashboardStats() {
     recentCustomers,
     recentActivity,
     recentPayments,
+    topProducts,
   ] = await Promise.all([
     prisma.order.count(),
     prisma.order.count({
       where: { status: { in: ['PENDING_PAYMENT', 'PROCESSING'] } },
     }),
     prisma.order.count({ where: { status: 'COMPLETED' } }),
+    prisma.order.count({ where: { paymentStatus: 'UNPAID' } }),
+    prisma.order.count({ where: { paymentStatus: 'PAID' } }),
+    prisma.order.count({
+      where: {
+        paymentStatus: 'PAID',
+        fulfillmentStatus: { in: ['PENDING', 'PROCESSING', 'WAITING_FOR_CUSTOMER'] },
+      },
+    }),
     prisma.customer.count(),
     prisma.product.count({ where: { isVisible: true } }),
     prisma.order.aggregate({
@@ -39,6 +51,12 @@ export async function getDashboardStats() {
       take: 8,
       orderBy: { createdAt: 'desc' },
       include: { order: { include: { customer: true } } },
+    }),
+    prisma.orderItem.groupBy({
+      by: ['productName'],
+      _sum: { quantity: true, lineTotal: true },
+      orderBy: { _sum: { lineTotal: 'desc' } },
+      take: 5,
     }),
   ])
 
@@ -68,6 +86,9 @@ export async function getDashboardStats() {
     totalOrders,
     pendingOrders,
     completedOrders,
+    unpaidOrders,
+    paidOrders,
+    pendingFulfillment,
     totalCustomers,
     totalProducts,
     totalRevenue: revenueAgg._sum.totalAmount ?? 0,
@@ -75,6 +96,7 @@ export async function getDashboardStats() {
     recentCustomers,
     recentActivity,
     recentPayments,
+    topProducts,
     chart,
   }
 }

@@ -9,6 +9,8 @@ export type StorefrontProduct = {
   features: string[]
   price: number | null
   promoPrice: number | null
+  plansEnabled: boolean
+  activePlans: { price: number; promoPrice: number | null; isActive: boolean }[]
 }
 
 export function mapStorefrontProduct(p: PublicProduct): StorefrontProduct {
@@ -33,5 +35,11 @@ export function mapStorefrontProduct(p: PublicProduct): StorefrontProduct {
     features,
     price: p.price,
     promoPrice: p.promoPrice,
+    plansEnabled: p.plansEnabled,
+    activePlans: (p.plans ?? []).map((pl) => ({
+      price: pl.price,
+      promoPrice: pl.promoPrice,
+      isActive: pl.isActive,
+    })),
   }
 }

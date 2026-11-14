@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import { getProductBySlugFromDb } from '@/lib/catalog'
 import { ProductLogo } from '@/components/ui/ProductLogo'
 import { Button } from '@/components/ui/Button'
+import { PlanPurchasePanel } from '@/components/subscriptions/PlanPurchasePanel'
+import { isProductPurchasable } from '@/modules/commerce/product-pricing'
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -30,6 +32,15 @@ export default async function SubscriptionDetailPage({ params }: Props) {
     details = []
     features = []
   }
+
+  const purchasable = isProductPurchasable({
+    price: product.price,
+    promoPrice: product.promoPrice,
+    isAvailable: product.isAvailable,
+    isVisible: product.isVisible,
+    plansEnabled: product.plansEnabled,
+    activePlans: product.plans,
+  })
 
   return (
     <div className="pt-24 pb-20">
@@ -61,26 +72,47 @@ export default async function SubscriptionDetailPage({ params }: Props) {
               ))}
             </ul>
           </div>
-          <div className="border-t border-mr-border pt-6">
-            <p className="text-sm text-mr-muted">قیمت</p>
-            <p className="mt-1 text-2xl font-bold">
-              {product.promoPrice != null
-                ? product.promoPrice.toLocaleString('fa-IR')
-                : product.price != null
-                  ? product.price.toLocaleString('fa-IR')
-                  : '—'}
-            </p>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button
-              href={`/contact?subject=${encodeURIComponent(`خرید ${product.nameFa}`)}`}
-              variant="primary"
-            >
-              درخواست خرید
-            </Button>
-            <Button href="/#subscriptions" variant="secondary">
-              بازگشت به اشتراک‌ها
-            </Button>
+          <div id="buy" className="border-t border-mr-border pt-6">
+            {purchasable ? (
+              <PlanPurchasePanel
+                productId={product.id}
+                productSlug={product.slug}
+                plansEnabled={product.plansEnabled}
+                legacyPrice={product.price}
+                legacyPromo={product.promoPrice}
+                plans={product.plans.map((p) => ({
+                  id: p.id,
+                  title: p.title,
+                  description: p.description,
+                  price: p.price,
+                  promoPrice: p.promoPrice,
+                  durationValue: p.durationValue,
+                  durationUnit: p.durationUnit,
+                  isFeatured: p.isFeatured,
+                }))}
+              />
+            ) : (
+              <Button
+                href={`/contact?subject=${encodeURIComponent(`خرید ${product.nameFa}`)}`}
+                variant="primary"
+              >
+                تماس برای خرید
+              </Button>
+            )}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button href="/cart" variant="secondary">
+                مشاهده سبد
+              </Button>
+              <Button href="/shop" variant="secondary">
+                فروشگاه
+              </Button>
+              <Button
+                href={`/contact?subject=${encodeURIComponent(`پشتیبانی ${product.nameFa}`)}`}
+                variant="secondary"
+              >
+                سوال قبل از خرید
+              </Button>
+            </div>
           </div>
         </section>
       </div>

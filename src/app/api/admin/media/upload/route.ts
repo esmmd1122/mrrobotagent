@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
-import { randomUUID } from 'crypto'
 import { requireAdminApi } from '@/lib/auth/require-admin'
+import { storeImage } from '@/lib/storage'
 import { PERMISSIONS } from '@/lib/auth/constants'
 import { prisma } from '@/lib/db'
 import { logActivity } from '@/lib/activity'
@@ -29,14 +27,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'حداکثر حجم ۵ مگابایت' }, { status: 400 })
   }
 
-  const bytes = Buffer.from(await file.arrayBuffer())
-  const ext = path.extname(file.name) || '.jpg'
-  const safeName = `${randomUUID()}${ext}`
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads')
-  await mkdir(uploadDir, { recursive: true })
-  await writeFile(path.join(uploadDir, safeName), bytes)
-
-  const url = `/uploads/${safeName}`
+  let url = ''
+  try {
+    url = await storeImage(file, 'media', MAX_BYTES)
+  } catch (error) {
+    const code = error instanceof Error ? error.message : ''
+    if (code === 'INVALID_IMAGE' || code === 'IMAGE_TOO_LARGE') {
+      return NextResponse.json({ error: 'فایل تصویر مجاز نیست' }, { status: 400 })
+    }
+    return NextResponse.json({ error: 'ذخیره فایل ممکن نیست' }, { status: 503 })
+  }
   const asset = await prisma.mediaAsset.create({
     data: {
       filename: file.name,

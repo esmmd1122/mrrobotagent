@@ -8,7 +8,17 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
-    "start": "next start"
+    "start": "next start",
+    "test:salon": "node --experimental-strip-types --test src/modules/salon/scheduling.test.ts src/lib/env/production.test.ts && node scripts/salon-conflict.mjs && node scripts/salon-isolation.mjs",
+    "test:commerce": "node --experimental-strip-types --test src/modules/commerce/pricing.test.ts src/modules/commerce/money.test.ts src/modules/commerce/product-pricing.test.ts src/modules/commerce/order-access.test.ts src/modules/commerce/purchase-fields.test.ts src/modules/commerce/redirect-to-payment.test.ts src/modules/commerce/plan-pricing.test.ts",
+    "test:payment": "node --experimental-strip-types --test src/modules/payment/environment.test.ts src/modules/payment/payment-integrity.test.ts src/modules/payment/initiate-body.test.ts",
+    "test:fulfillment": "node --experimental-strip-types --test src/modules/fulfillment/rules.test.ts src/modules/fulfillment/file-download.test.ts",
+    "test:customer": "node --experimental-strip-types --test src/lib/customer-auth/session.test.ts src/lib/customer-auth/cookie-options.test.ts src/lib/delivery/storage-path.test.ts src/lib/delivery/read-stored-bytes.test.ts src/modules/customer-auth/enumeration.test.ts src/modules/commerce/customer-order-access.test.ts src/modules/notifications/notification-access.test.ts",
+    "test:store": "npm run test:commerce && npm run test:payment && npm run test:fulfillment && npm run test:customer",
+    "backup:sqlite": "node scripts/backup-sqlite.mjs",
+    "migrate:postgres": "node scripts/migrate-sqlite-to-postgres.mjs",
+    "migrate:fulfillment-files": "node scripts/migrate-fulfillment-files.mjs",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.0.0",
@@ -18,7 +28,10 @@
     "ai": "^4.0.0",
     "bcryptjs": "^3.0.3",
     "framer-motion": "^11.15.0",
+    "@aws-sdk/client-s3": "^3.716.0",
+    "ioredis": "^5.4.2",
     "jose": "^6.2.17",
+    "pg": "^8.13.1",
     "next": "16.3.4",
     "prisma": "^5.22.0",
     "react": "^19.0.0",
@@ -34,6 +47,7 @@
     "@types/react-dom": "^19.0.0",
     "postcss": "^8.5.32",
     "tailwindcss": "^4.3.5",
+    "@playwright/test": "^1.49.1",
     "typescript": "^5.0.0"
   },
   "prisma": {

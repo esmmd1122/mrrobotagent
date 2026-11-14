@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { PERMISSIONS } from '@/lib/auth/constants'
 import { ProductForm } from '@/components/admin/ProductForm'
+import { AdminProductPricePreview } from '@/components/admin/AdminProductPricePreview'
 import { createProduct } from '../actions'
 
 export default async function NewProductPage() {
@@ -11,6 +12,7 @@ export default async function NewProductPage() {
   return (
     <div>
       <h1 className="mb-4 text-xl font-bold">افزودن محصول</h1>
+      <AdminProductPricePreview price={null} promoPrice={null} isVisible isAvailable />
       <ProductForm categories={categories} action={createProduct} />
     </div>
   )

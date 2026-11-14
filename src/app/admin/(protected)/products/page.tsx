@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { PERMISSIONS } from '@/lib/auth/constants'
+import { effectiveUnitPrice, formatStoreMoney } from '@/modules/commerce/pricing'
 
 export default async function AdminProductsPage() {
   await requireAdmin(PERMISSIONS.PRODUCTS_MANAGE)
@@ -48,12 +49,21 @@ export default async function AdminProductsPage() {
                 </td>
                 <td>{p.category.nameFa}</td>
                 <td>
-                  {p.price != null ? p.price.toLocaleString('fa-IR') : '—'}
-                  {p.promoPrice != null ? (
-                    <span className="mr-2 text-xs text-[#e10600]">
-                      فروش ویژه: {p.promoPrice.toLocaleString('fa-IR')}
-                    </span>
-                  ) : null}
+                  {(() => {
+                    const unit = effectiveUnitPrice(p.price, p.promoPrice)
+                    return unit != null ? (
+                      <>
+                        {formatStoreMoney(unit, p.currency)}
+                        {p.promoPrice != null && p.price != null && p.promoPrice < p.price ? (
+                          <span className="mr-2 text-xs text-white/45 line-through">
+                            {formatStoreMoney(p.price, p.currency)}
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      'تماس بگیرید'
+                    )
+                  })()}
                 </td>
                 <td>{p.isVisible ? 'فعال' : 'مخفی'}</td>
                 <td>

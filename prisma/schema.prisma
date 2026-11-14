@@ -119,6 +119,9 @@ model Product {
   description   String
   detailsJson   String          @default("[]")
   featuresJson  String          @default("[]")
+  // JSON array of { id, label, type, required, maxLength } for checkout
+  purchaseFieldsJson String       @default("[]")
+  plansEnabled  Boolean         @default(false)
   price         Float?
   promoPrice    Float?
   currency      String          @default("IRR")
@@ -127,55 +130,149 @@ model Product {
   isFeatured    Boolean         @default(false)
   isVisible     Boolean         @default(true)
   sortOrder     Int             @default(0)
+  plans         ProductPlan[]
   orderItems    OrderItem[]
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 }
 
+model ProductPlan {
+  id                      String      @id @default(uuid())
+  productId               String
+  product                 Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  title                   String
+  description             String?
+  price                   Float
+  promoPrice              Float?
+  durationValue           Int?
+  durationUnit            String      @default("MONTH")
+  fulfillmentInstructions String?
+  sortOrder               Int         @default(0)
+  isActive                Boolean     @default(true)
+  isFeatured              Boolean     @default(false)
+  orderItems              OrderItem[]
+  createdAt               DateTime    @default(now())
+  updatedAt               DateTime    @updatedAt
+
+  @@index([productId, isActive, sortOrder])
+}
+
 // --- Customers & orders ---
 model Customer {
-  id           String    @id @default(uuid())
-  name         String
-  email        String?
-  phone        String?
-  status       String    @default("ACTIVE")
-  orders       Order[]
-  aiRequests   AIServiceRequest[]
-  tickets      SupportTicket[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id            String                 @id @default(uuid())
+  name          String
+  email         String?
+  phone         String?
+  passwordHash  String?
+  status        String                 @default("ACTIVE")
+  lastLoginAt   DateTime?
+  orders        Order[]
+  notifications CustomerNotification[]
+  aiRequests    AIServiceRequest[]
+  tickets       SupportTicket[]
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
 
   @@index([email])
   @@index([phone])
 }
 
-model Order {
-  id              String      @id @default(uuid())
-  orderNumber     String      @unique
+/// In-app (+ queued outbound) notifications for store customers — not salon SaaS.
+model CustomerNotification {
+  id              String    @id @default(uuid())
   customerId      String
-  customer        Customer    @relation(fields: [customerId], references: [id])
-  status          String      @default("PENDING_PAYMENT")
-  paymentStatus   String      @default("UNPAID")
-  totalAmount     Float       @default(0)
-  currency        String      @default("IRR")
-  adminNotes      String?
-  deliveryInfo    String?
-  items           OrderItem[]
-  payments        Payment[]
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  customer        Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orderId         String?
+  order           Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  type            String
+  title           String
+  body            String
+  channel         String    @default("IN_APP")
+  deliveryStatus  String    @default("RECORDED")
+  emailAttempted  Boolean   @default(false)
+  smsAttempted    Boolean   @default(false)
+  readAt          DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([customerId, readAt])
+  @@index([customerId, createdAt])
+}
+
+model Order {
+  id                String            @id @default(uuid())
+  orderNumber       String            @unique
+  customerId        String
+  customer          Customer          @relation(fields: [customerId], references: [id])
+  status            String            @default("PENDING_PAYMENT")
+  paymentStatus     String            @default("UNPAID")
+  subtotalAmount    Float             @default(0)
+  discountAmount    Float             @default(0)
+  totalAmount       Float             @default(0)
+  currency          String            @default("IRR")
+  discountCode      String?
+  termsAcceptedAt   DateTime?
+  idempotencyKey        String?           @unique
+  customerViewTokenHash String?           @unique
+  fulfillmentType   String            @default("MANUAL")
+  fulfillmentStatus String            @default("PENDING")
+  adminNotes        String?
+  deliveryInfo      String?
+  items             OrderItem[]
+  payments          Payment[]
+  fulfillment       OrderFulfillment?
+  notifications     CustomerNotification[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 }
 
 model OrderItem {
-  id          String   @id @default(uuid())
-  orderId     String
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId   String?
-  product     Product? @relation(fields: [productId], references: [id])
-  productName String
-  quantity    Int      @default(1)
-  unitPrice   Float
-  lineTotal   Float
+  id                          String       @id @default(uuid())
+  orderId                     String
+  order                       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId                   String?
+  product                     Product?     @relation(fields: [productId], references: [id])
+  planId                      String?
+  plan                        ProductPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  productSlug                 String?
+  productName                 String
+  planTitle                   String?
+  planDurationValue           Int?
+  planDurationUnit            String?
+  planFulfillmentInstructions String?
+  quantity                    Int          @default(1)
+  listUnitPrice               Float        @default(0)
+  unitPrice                   Float
+  lineTotal                   Float
+}
+
+/// Manual / future automatic delivery — independent from paymentStatus.
+model OrderFulfillment {
+  id              String                 @id @default(uuid())
+  orderId         String                 @unique
+  order           Order                  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  type            String                 @default("MANUAL")
+  status          String                 @default("PENDING")
+  assignedAdminId String?
+  assignedAt      DateTime?
+  deliveryInfo    String?
+  internalNotes   String?
+  failureReason   String?
+  deliveredAt     DateTime?
+  files           OrderFulfillmentFile[]
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+}
+
+model OrderFulfillmentFile {
+  id                String           @id @default(uuid())
+  fulfillmentId     String
+  fulfillment       OrderFulfillment @relation(fields: [fulfillmentId], references: [id], onDelete: Cascade)
+  filename          String
+  url               String
+  mimeType          String
+  sizeBytes         Int
+  uploadedByAdminId String?
+  createdAt         DateTime         @default(now())
 }
 
 // --- Payments (gateway-ready) ---
@@ -192,6 +289,7 @@ model Payment {
   refundStatus    String               @default("NONE")
   verifiedAt      DateTime?
   failureReason   String?
+  redirectUrl     String?
   transactions    PaymentTransaction[]
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
@@ -335,4 +433,425 @@ model DiscountCode {
   isActive        Boolean   @default(true)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+}
+
+// --- MR.ROBOT AI salon SaaS (isolated from legacy chat booking + commerce) ---
+model SalonPlan {
+  id                  String              @id @default(uuid())
+  slug                String              @unique
+  nameFa              String
+  monthlyBookingLimit Int
+  employeeLimit       Int
+  aiTokenLimit        Int
+  priceToman          Int
+  featuresJson        String              @default("[]")
+  isActive            Boolean             @default(true)
+  subscriptions       SalonSubscription[]
+}
+
+model SalonBusiness {
+  id                String                 @id @default(uuid())
+  slug              String                 @unique
+  name              String
+  category          String                 @default("HAIR_SALON")
+  description       String                 @default("")
+  phone             String?
+  address           String?
+  timezone          String                 @default("Asia/Tehran")
+  logoUrl           String?
+  coverUrl          String?
+  accentColor       String                 @default("#111111")
+  status            String                 @default("ACTIVE")
+  cancellationHours Int                    @default(2)
+  bufferMinutes     Int                    @default(10)
+  minAdvanceMinutes Int                    @default(60)
+  maxHorizonDays    Int                    @default(60)
+  slotStepMinutes   Int                    @default(30)
+  published         Boolean                @default(false)
+  memberships       SalonMembership[]
+  branches          SalonBranch[]
+  employees         SalonEmployee[]
+  categories        SalonServiceCategory[]
+  offerings         SalonOffering[]
+  guests            SalonGuest[]
+  bookings          SalonBooking[]
+  hours             SalonBusinessHour[]
+  breaks            SalonBusinessBreak[]
+  exceptions        SalonExceptionHour[]
+  holidays          SalonHoliday[]
+  subscription      SalonSubscription?
+  notifications     SalonNotification[]
+  aiUsages          SalonAiUsage[]
+  agentConfig       SalonAgentConfig?
+  agentFaqs         SalonAgentFaq[]
+  aiProviders       SalonAiProvider[]
+  agentConversations SalonAgentConversation[]
+  agentPending      SalonAgentPendingAction[]
+  audits            SalonAudit[]
+  otps              SalonOtp[]
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+}
+
+model SalonBranch {
+  id         String          @id @default(uuid())
+  businessId String
+  business   SalonBusiness   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  isDefault  Boolean         @default(true)
+  employees  SalonEmployee[]
+  bookings   SalonBooking[]
+  createdAt  DateTime        @default(now())
+
+  @@index([businessId])
+}
+
+model SalonMembership {
+  id           String        @id @default(uuid())
+  businessId   String
+  business     SalonBusiness @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  email        String
+  passwordHash String
+  name         String
+  role         String
+  employeeId   String?
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+
+  @@unique([businessId, email])
+  @@index([email])
+}
+
+model SalonBusinessHour {
+  id         String        @id @default(uuid())
+  businessId String
+  business   SalonBusiness @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  dayOfWeek  Int
+  startTime  String
+  endTime    String
+  closed     Boolean       @default(false)
+
+  @@unique([businessId, dayOfWeek])
+}
+
+model SalonHoliday {
+  id         String        @id @default(uuid())
+  businessId String
+  business   SalonBusiness @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  date       String
+  label      String        @default("")
+
+  @@unique([businessId, date])
+}
+
+model SalonBusinessBreak {
+  id         String        @id @default(uuid())
+  businessId String
+  business   SalonBusiness @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  dayOfWeek  Int
+  startTime  String
+  endTime    String
+
+  @@index([businessId, dayOfWeek])
+}
+
+model SalonExceptionHour {
+  id         String        @id @default(uuid())
+  businessId String
+  business   SalonBusiness @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  date       String
+  closed     Boolean       @default(false)
+  startTime  String        @default("10:00")
+  endTime    String        @default("20:00")
+
+  @@unique([businessId, date])
+}
+
+model SalonEmployee {
+  id         String                 @id @default(uuid())
+  businessId String
+  business   SalonBusiness          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  branchId   String
+  branch     SalonBranch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  name       String
+  bio        String                 @default("")
+  isActive   Boolean                @default(true)
+  hours      SalonEmployeeHour[]
+  breaks     SalonEmployeeBreak[]
+  daysOff    SalonDayOff[]
+  blocks     SalonEmployeeBlock[]
+  services   SalonEmployeeService[]
+  bookings   SalonBooking[]
+  createdAt  DateTime               @default(now())
+
+  @@index([businessId])
+}
+
+model SalonEmployeeHour {
+  id         String        @id @default(uuid())
+  employeeId String
+  employee   SalonEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  dayOfWeek  Int
+  startTime  String
+  endTime    String
+
+  @@unique([employeeId, dayOfWeek])
+}
+
+model SalonEmployeeBreak {
+  id         String        @id @default(uuid())
+  employeeId String
+  employee   SalonEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  dayOfWeek  Int
+  startTime  String
+  endTime    String
+}
+
+model SalonDayOff {
+  id         String        @id @default(uuid())
+  employeeId String
+  employee   SalonEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       String
+
+  @@unique([employeeId, date])
+}
+
+model SalonEmployeeBlock {
+  id         String        @id @default(uuid())
+  employeeId String
+  employee   SalonEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       String
+  startTime  String
+  endTime    String
+
+  @@index([employeeId, date])
+}
+
+model SalonServiceCategory {
+  id         String          @id @default(uuid())
+  businessId String
+  business   SalonBusiness   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  offerings  SalonOffering[]
+
+  @@index([businessId])
+}
+
+model SalonOffering {
+  id              String                 @id @default(uuid())
+  businessId      String
+  business        SalonBusiness          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  categoryId      String?
+  category        SalonServiceCategory?  @relation(fields: [categoryId], references: [id])
+  name            String
+  description     String                 @default("")
+  priceToman      Int
+  durationMinutes Int
+  imageUrl        String?
+  isActive        Boolean                @default(true)
+  employees       SalonEmployeeService[]
+  bookings        SalonBooking[]
+  createdAt       DateTime               @default(now())
+
+  @@index([businessId])
+}
+
+model SalonEmployeeService {
+  employeeId String
+  offeringId String
+  employee   SalonEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  offering   SalonOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+
+  @@id([employeeId, offeringId])
+}
+
+model SalonGuest {
+  id         String         @id @default(uuid())
+  businessId String
+  business   SalonBusiness  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  phone      String
+  name       String?
+  notes      String?
+  bookings   SalonBooking[]
+  createdAt  DateTime       @default(now())
+
+  @@unique([businessId, phone])
+}
+
+model SalonBooking {
+  id         String        @id @default(uuid())
+  businessId String
+  business   SalonBusiness @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  branchId   String
+  branch     SalonBranch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   SalonEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  offeringId String
+  offering   SalonOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  guestId    String
+  guest      SalonGuest    @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  startTime  DateTime
+  endTime    DateTime
+  status     String        @default("CONFIRMED")
+  reference  String        @unique
+  slotKey    String?       @unique
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([employeeId, startTime])
+  @@index([businessId, startTime])
+  @@index([guestId])
+}
+
+model SalonOtp {
+  id         String        @id @default(uuid())
+  businessId String
+  business   SalonBusiness @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  phone      String
+  codeHash   String
+  purpose    String
+  expiresAt  DateTime
+  attempts   Int           @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime      @default(now())
+
+  @@index([businessId, phone])
+}
+
+model SalonSubscription {
+  id           String        @id @default(uuid())
+  businessId   String        @unique
+  business     SalonBusiness @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  planId       String
+  plan         SalonPlan     @relation(fields: [planId], references: [id])
+  status       String        @default("ACTIVE")
+  periodStart  DateTime
+  periodEnd    DateTime
+  bookingCount Int           @default(0)
+}
+
+model SalonNotification {
+  id         String        @id @default(uuid())
+  businessId String
+  business   SalonBusiness @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  title      String
+  body       String
+  kind       String
+  readAt     DateTime?
+  createdAt  DateTime      @default(now())
+
+  @@index([businessId, createdAt])
+}
+
+model SalonAiUsage {
+  id         String        @id @default(uuid())
+  businessId String
+  business   SalonBusiness @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  provider   String
+  tokens     Int
+  createdAt  DateTime      @default(now())
+
+  @@index([businessId, createdAt])
+}
+
+model SalonAgentConfig {
+  id               String        @id @default(uuid())
+  businessId       String        @unique
+  business         SalonBusiness @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  enabled          Boolean       @default(false)
+  displayName      String        @default("دستیار سالن")
+  language         String        @default("fa")
+  tone             String        @default("friendly")
+  welcomeMessage   String        @default("")
+  instructions     String        @default("")
+  escalationRules  String        @default("{}")
+  allowedActions   String        @default("{\"faq\":true,\"services\":true,\"slots\":true,\"appointments\":true,\"book\":true,\"reschedule\":true,\"cancel\":true}")
+  updatedAt        DateTime      @updatedAt
+}
+
+model SalonAgentFaq {
+  id         String        @id @default(uuid())
+  businessId String
+  business   SalonBusiness @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  question   String
+  answer     String
+  sortOrder  Int           @default(0)
+
+  @@index([businessId, sortOrder])
+}
+
+model SalonAiProvider {
+  id               String        @id @default(uuid())
+  businessId       String
+  business         SalonBusiness @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  provider         String
+  enabled          Boolean       @default(false)
+  model            String?
+  baseUrl          String?
+  secretCiphertext String        @default("")
+  secretIv         String        @default("")
+  secretTag        String        @default("")
+  activeForAgent   Boolean       @default(false)
+  lastTestAt       DateTime?
+  lastTestOk       Boolean       @default(false)
+  lastError        String        @default("")
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@unique([businessId, provider])
+  @@index([businessId])
+}
+
+model SalonAgentConversation {
+  id          String               @id @default(uuid())
+  businessId  String
+  business    SalonBusiness        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  channel     String               @default("website")
+  guestPhone  String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  messages    SalonAgentMessage[]
+  pending     SalonAgentPendingAction[]
+
+  @@index([businessId, updatedAt])
+}
+
+model SalonAgentMessage {
+  id             String                 @id @default(uuid())
+  conversationId String
+  conversation   SalonAgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String
+  content        String
+  meta           String                 @default("{}")
+  createdAt      DateTime               @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model SalonAgentPendingAction {
+  id             String                  @id @default(uuid())
+  businessId     String
+  business       SalonBusiness           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   SalonAgentConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  action         String
+  payload        String
+  expiresAt      DateTime
+  consumedAt     DateTime?
+  createdAt      DateTime                @default(now())
+
+  @@index([businessId, expiresAt])
+  @@index([conversationId])
+}
+
+model SalonAudit {
+  id         String         @id @default(uuid())
+  businessId String?
+  business   SalonBusiness? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  actor      String
+  action     String
+  metadata   String?
+  createdAt  DateTime       @default(now())
+
+  @@index([businessId, createdAt])
 }

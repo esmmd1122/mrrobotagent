@@ -5,6 +5,9 @@ import { SectionHeader } from '@/components/ui/SectionHeader'
 import { ProductLogo } from '@/components/ui/ProductLogo'
 import { Button } from '@/components/ui/Button'
 import type { StorefrontProduct } from '@/lib/mappers/product'
+import { effectiveUnitPrice } from '@/modules/commerce/unit-price'
+import { formatStoreMoney } from '@/modules/commerce/money'
+import { isProductPurchasable } from '@/modules/commerce/product-pricing'
 
 export function SubscriptionsSection({
   products,
@@ -65,11 +68,18 @@ export function SubscriptionsSection({
                 <div className="mt-6 border-t border-mr-border pt-4">
                   <p className="text-xs text-mr-muted">قیمت</p>
                   <p className="mt-1 text-lg font-semibold text-white/90">
-                    {product.promoPrice != null
-                      ? product.promoPrice.toLocaleString('fa-IR')
-                      : product.price != null
-                        ? product.price.toLocaleString('fa-IR')
-                        : '—'}
+                    {(() => {
+                      if (product.plansEnabled && product.activePlans.length > 0) {
+                        const from = Math.min(
+                          ...product.activePlans
+                            .map((pl) => effectiveUnitPrice(pl.price, pl.promoPrice))
+                            .filter((u): u is number => u != null),
+                        )
+                        return Number.isFinite(from) ? `از ${formatStoreMoney(from)}` : 'تماس بگیرید'
+                      }
+                      const unit = effectiveUnitPrice(product.price, product.promoPrice)
+                      return unit != null ? formatStoreMoney(unit) : 'تماس بگیرید'
+                    })()}
                   </p>
                 </div>
 
@@ -81,13 +91,30 @@ export function SubscriptionsSection({
                   >
                     جزئیات اشتراک
                   </Button>
-                  <Button
-                    href={`/contact?subject=${encodeURIComponent(`خرید ${product.name}`)}`}
-                    variant="secondary"
-                    className="w-full !py-2.5 text-sm"
-                  >
-                    درخواست خرید
-                  </Button>
+                  {isProductPurchasable({
+                    price: product.price ?? null,
+                    promoPrice: product.promoPrice ?? null,
+                    isAvailable: true,
+                    isVisible: true,
+                    plansEnabled: product.plansEnabled,
+                    activePlans: product.activePlans,
+                  }) ? (
+                    <Button
+                      href={`/subscriptions/${product.slug}`}
+                      variant="primary"
+                      className="w-full !py-2.5 text-sm"
+                    >
+                      خرید اشتراک
+                    </Button>
+                  ) : (
+                    <Button
+                      href={`/contact?subject=${encodeURIComponent(`خرید ${product.name}`)}`}
+                      variant="secondary"
+                      className="w-full !py-2.5 text-sm"
+                    >
+                      تماس برای خرید
+                    </Button>
+                  )}
                 </div>
               </motion.article>
             ))}
@@ -95,7 +122,7 @@ export function SubscriptionsSection({
         )}
 
         <p className="mt-10 text-center text-sm text-mr-muted">
-          پرداخت آنلاین از معماری پرداخت فعال می‌شود؛ تا آن زمان درخواست از طریق تماس ثبت می‌شود.
+          پرداخت آنلاین از درگاه پیکربندی‌شده (یا حالت آزمایشی در توسعه) انجام می‌شود.
         </p>
       </div>
     </section>

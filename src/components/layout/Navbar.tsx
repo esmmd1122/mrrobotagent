@@ -16,9 +16,10 @@ const fallbackLinks: NavLinkConfig[] = [
 type Props = {
   links?: NavLinkConfig[]
   purchaseCta?: { label: string; href: string }
+  cartCount?: number
 }
 
-export function Navbar({ links, purchaseCta }: Props) {
+export function Navbar({ links, purchaseCta, cartCount = 0 }: Props) {
   const navLinks = (links || fallbackLinks).filter((l) => l.enabled)
   const cta = purchaseCta || { label: 'خرید اشتراک', href: '/#subscriptions' }
 
@@ -58,7 +59,24 @@ export function Navbar({ links, purchaseCta }: Props) {
           ))}
         </nav>
 
-        <div className="hidden lg:block">
+        <div className="hidden items-center gap-3 lg:flex">
+          <Link
+            href="/account"
+            className="rounded-lg border border-mr-border px-3 py-2 text-sm text-white/85 hover:bg-white/5"
+          >
+            حساب من
+          </Link>
+          <Link
+            href="/cart"
+            className="relative rounded-lg border border-mr-border px-3 py-2 text-sm text-white/85 hover:bg-white/5"
+          >
+            سبد
+            {cartCount > 0 ? (
+              <span className="absolute -left-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-mr-red px-1 text-[10px] font-bold">
+                {cartCount > 99 ? '99+' : cartCount}
+              </span>
+            ) : null}
+          </Link>
           <Button
             href={cta.href}
             variant="primary"

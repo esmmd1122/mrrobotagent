@@ -18,10 +18,10 @@ export function AdminHeader({
   }
 
   return (
-    <header className="admin-card mb-4 flex flex-wrap items-center justify-between gap-3 p-4">
+    <header className="admin-card mb-5 flex flex-wrap items-center justify-between gap-3 px-5 py-4">
       <div>
-        <p className="text-sm text-white/50">خوش آمدید</p>
-        <p className="font-semibold">{name}</p>
+        <p className="mr-kicker">PLATFORM</p>
+        <p className="mt-1 text-lg font-semibold">{name}</p>
       </div>
       <div className="flex items-center gap-3">
         <span className="text-xs text-white/45" dir="ltr">

@@ -16,6 +16,7 @@ const ALL_PERMISSIONS = [
   'discounts:manage',
   'admins:manage',
   'activity:view',
+  'platform:manage',
 ]
 
 const categories = [
@@ -213,6 +214,16 @@ async function main() {
       provider: 'zarinpal',
       isEnabled: false,
       settings: JSON.stringify({ note: 'پیکربندی از پنل ادمین — کلیدها در سرور' }),
+    },
+  })
+
+  await prisma.paymentGatewayConfig.upsert({
+    where: { provider: 'sandbox' },
+    update: {},
+    create: {
+      provider: 'sandbox',
+      isEnabled: false,
+      settings: JSON.stringify({ note: 'فقط dev با ALLOW_PAYMENT_SANDBOX=true' }),
     },
   })
 

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { Vazirmatn } from 'next/font/google'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
@@ -8,6 +9,7 @@ import {
   getActiveWebsiteConfig,
   themeToCssVars,
 } from '@/lib/site-config/service'
+import { getCartItemCount } from '@/modules/commerce/cart-cookie'
 
 const vazirmatn = Vazirmatn({
   subsets: ['arabic'],
@@ -40,6 +42,8 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   const site = await getActiveWebsiteConfig()
+  const bare = (await headers()).get('x-mr-chrome') === 'bare'
+  const cartCount = bare ? 0 : await getCartItemCount()
 
   return (
     <html
@@ -51,12 +55,15 @@ export default async function RootLayout({
     >
       <body className="min-h-screen flex flex-col">
         <SiteThemeStyles theme={site.theme} />
-        <Navbar
-          links={site.navigation.header}
-          purchaseCta={site.navigation.purchaseCta}
-        />
+        {!bare && (
+          <Navbar
+            links={site.navigation.header}
+            purchaseCta={site.navigation.purchaseCta}
+            cartCount={cartCount}
+          />
+        )}
         <main className="flex-1">{children}</main>
-        <Footer config={site.footer} quickLinks={site.navigation.footerQuickLinks} />
+        {!bare && <Footer config={site.footer} quickLinks={site.navigation.footerQuickLinks} />}
       </body>
     </html>
   )

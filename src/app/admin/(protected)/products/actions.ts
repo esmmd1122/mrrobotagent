@@ -7,6 +7,12 @@ import { prisma } from '@/lib/db'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { PERMISSIONS } from '@/lib/auth/constants'
 import { logActivity } from '@/lib/activity'
+import { STORE_CURRENCY_CODE } from '@/modules/commerce/money'
+
+const optionalMoney = z.preprocess(
+  (v) => (v === '' || v === null || v === undefined ? null : v),
+  z.coerce.number().nonnegative().nullable(),
+)
 
 const productSchema = z.object({
   categoryId: z.string().uuid(),
@@ -16,8 +22,9 @@ const productSchema = z.object({
   description: z.string().min(5),
   detailsJson: z.string(),
   featuresJson: z.string(),
-  price: z.coerce.number().optional(),
-  promoPrice: z.coerce.number().optional(),
+  purchaseFieldsJson: z.string().optional(),
+  price: optionalMoney,
+  promoPrice: optionalMoney,
   imageUrl: z.string().optional(),
   isAvailable: z.coerce.boolean(),
   isFeatured: z.coerce.boolean(),
@@ -48,7 +55,11 @@ async function saveProduct(formData: FormData, productId?: string) {
     throw new Error('داده محصول نامعتبر است')
   }
 
-  const data = parsed.data
+  const data = {
+    ...parsed.data,
+    purchaseFieldsJson: parsed.data.purchaseFieldsJson?.trim() || '[]',
+    currency: STORE_CURRENCY_CODE,
+  }
 
   let product
   if (productId) {
@@ -73,6 +84,9 @@ async function saveProduct(formData: FormData, productId?: string) {
   }
 
   revalidatePath('/')
+  revalidatePath('/shop')
+  revalidatePath(`/subscriptions/${product.slug}`)
+  revalidatePath(`/subscriptions/${product.slug}/buy`)
   revalidatePath('/admin/products')
   redirect(`/admin/products/${product.id}`)
 }
@@ -90,5 +104,6 @@ export async function archiveProduct(productId: string) {
     entityId: productId,
   })
   revalidatePath('/admin/products')
+  revalidatePath('/shop')
   revalidatePath('/')
 }
