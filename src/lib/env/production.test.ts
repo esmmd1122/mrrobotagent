@@ -19,3 +19,26 @@ test('production rejects sqlite, missing redis, and OTP reveal', () => {
 test('development does not fail closed', () => {
   assert.deepEqual(productionProblems({ NODE_ENV: 'development', OTP_DEV_REVEAL: 'true' }), [])
 })
+
+test('vercel preview skips production fail-closed', () => {
+  assert.deepEqual(
+    productionProblems({
+      NODE_ENV: 'production',
+      VERCEL_ENV: 'preview',
+      DATABASE_URL: 'file:./dev.db',
+      OTP_DEV_REVEAL: 'true',
+    }),
+    [],
+  )
+})
+
+test('store-only production skips salon infrastructure requirements', () => {
+  const problems = productionProblems({
+    NODE_ENV: 'production',
+    VERCEL_ENV: 'production',
+    DATABASE_URL: 'postgresql://x',
+    AUTH_SECRET: 'a'.repeat(32),
+    MR_ROBOT_STORE_ONLY: 'true',
+  })
+  assert.deepEqual(problems, [])
+})

@@ -8,6 +8,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
+    "build:vercel": "node scripts/vercel-build.mjs",
+    "postinstall": "prisma generate",
     "start": "next start",
     "test:salon": "node --experimental-strip-types --test src/modules/salon/scheduling.test.ts src/lib/env/production.test.ts && node scripts/salon-conflict.mjs && node scripts/salon-isolation.mjs",
     "test:commerce": "node --experimental-strip-types --test src/modules/commerce/pricing.test.ts src/modules/commerce/money.test.ts src/modules/commerce/product-pricing.test.ts src/modules/commerce/order-access.test.ts src/modules/commerce/purchase-fields.test.ts src/modules/commerce/redirect-to-payment.test.ts src/modules/commerce/plan-pricing.test.ts",
@@ -17,22 +19,27 @@
     "test:store": "npm run test:commerce && npm run test:payment && npm run test:fulfillment && npm run test:customer",
     "backup:sqlite": "node scripts/backup-sqlite.mjs",
     "migrate:postgres": "node scripts/migrate-sqlite-to-postgres.mjs",
+    "check:prisma-schemas": "node scripts/check-prisma-schemas.mjs",
+    "generate:postgres": "prisma generate --schema=prisma/schema.postgresql.prisma",
+    "test:migrate-scripts": "node --test scripts/lib/db-write-guard.test.mjs scripts/lib/sqlite-table-order.test.mjs scripts/lib/sqlite-backup-core.test.mjs scripts/lib/pg-migrate-core.test.mjs scripts/lib/parse-prisma-schema.test.mjs scripts/lib/compare-prisma-schemas.test.mjs",
     "migrate:fulfillment-files": "node scripts/migrate-fulfillment-files.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.0.0",
     "@ai-sdk/react": "^1.0.0",
+    "@aws-sdk/client-s3": "^3.716.0",
+    "@neon/config": "^1.14.2",
+    "@neon/env": "^2.1.5",
     "@prisma/client": "^5.22.0",
     "@types/bcryptjs": "^2.4.6",
     "ai": "^4.0.0",
     "bcryptjs": "^3.0.3",
     "framer-motion": "^11.15.0",
-    "@aws-sdk/client-s3": "^3.716.0",
     "ioredis": "^5.4.2",
     "jose": "^6.2.17",
-    "pg": "^8.13.1",
     "next": "16.3.4",
+    "pg": "^8.13.1",
     "prisma": "^5.22.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -41,13 +48,13 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.1",
     "@tailwindcss/postcss": "^4.3.5",
     "@types/node": "^20.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "postcss": "^8.5.32",
     "tailwindcss": "^4.3.5",
-    "@playwright/test": "^1.49.1",
     "typescript": "^5.0.0"
   },
   "prisma": {

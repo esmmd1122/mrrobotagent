@@ -6,8 +6,9 @@ The running application still uses SQLite at `prisma/dev.db`. PostgreSQL migrati
 
 - `NODE_ENV=production`
 - `AUTH_SECRET` — at least 32 characters and not the example value
-- `DATABASE_URL` — PostgreSQL URL after a verified copy. A `file:` URL is rejected at startup.
-- `POSTGRES_URL` — used only by `npm run migrate:postgres`
+- `DATABASE_URL` — **pooled** PostgreSQL URL for the running app (Vercel / production). A `file:` URL is rejected at startup.
+- `DIRECT_URL` — **direct** PostgreSQL URL (non-pooler host). Required on Vercel at build time for `prisma generate` with `schema.postgresql.prisma`. Not used by the Next.js runtime unless you run Prisma CLI locally.
+- `POSTGRES_URL` — **direct** URL used **only** by `npm run migrate:postgres` (data copy). Not read by the application.
 - `REDIS_URL` — shared OTP limits. If Redis is down, OTP fails closed.
 - `OTP_DEV_REVEAL` — must not be `true`
 - `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_BASE_URL` — logos, covers, and admin media. Local disk uploads are refused in production.
@@ -19,7 +20,10 @@ Startup checks live in `src/lib/env/production.ts` and run from `src/instrumenta
 
 ## Commands
 
+Both scripts require explicit confirmation (`MR_ROBOT_CONFIRM_DB_WRITE=1` or `--yes`). They never delete or truncate data.
+
 ```bash
+set MR_ROBOT_CONFIRM_DB_WRITE=1
 npm run backup:sqlite
 npm run migrate:postgres
 npm run test:salon
@@ -28,7 +32,9 @@ npm run test:e2e
 
 `migrate:postgres` stops if `POSTGRES_URL` is missing or if the target already contains rows. It copies IDs in a transaction and rolls back on a count mismatch. It does not modify the SQLite file.
 
-After the copy is verified, set Vercel `DATABASE_URL` to that Postgres URL and change the Prisma datasource provider from `sqlite` to `postgresql` in a reviewed deployment. Then run `npx prisma generate`. Do not run `prisma db push --force-reset`.
+After the copy is verified, set Vercel environment variables (see Vercel section below). **Do not** edit `prisma/schema.prisma` for production — models stay in sync via `prisma/schema.postgresql.prisma` and `npm run check:prisma-schemas`. Do not run `prisma db push --force-reset`.
+
+**Schema vs data on Neon:** creating tables (`db push` against `schema.postgresql.prisma`) is separate from copying SQLite rows (`npm run migrate:postgres`). Apply schema to an empty database first, then run data migration once.
 
 Booking overlap uses the unique `slotKey` on every database. On PostgreSQL it also takes `pg_advisory_xact_lock` inside the booking transaction. SQLite keeps the unique key only, because advisory locks are not available there.
 
@@ -44,4 +50,29 @@ Booking overlap uses the unique `slotKey` on every database. On PostgreSQL it al
 
 ## Vercel
 
-`vercel.json` builds with `prisma generate && next build`. Set the variables above in the Vercel project. SQLite on Vercel is not durable. Redis and object storage must be managed services, not the local filesystem.
+`vercel.json` uses `node scripts/vercel-build.mjs`. On Vercel the build **fails closed** unless:
+
+- `DATABASE_URL` is set and uses `postgres://` or `postgresql://` (pooled Neon URL recommended).
+- `DIRECT_URL` is set and uses a PostgreSQL URL (direct / non-pooler host).
+
+The script runs `prisma generate --schema=prisma/schema.postgresql.prisma`, verifies the generated client’s datasource is `postgresql`, then `next build`. It **never** falls back to SQLite and **does not** modify `prisma/schema.prisma`. Local development keeps using `prisma/schema.prisma` via `npm run build` or `postinstall`.
+
+| Schema file | Purpose |
+|-------------|---------|
+| `prisma/schema.prisma` | Local SQLite (`file:./dev.db`) |
+| `prisma/schema.postgresql.prisma` | Production PostgreSQL (Neon) |
+
+**First-time Postgres (Neon):** `prisma/migrations` are SQLite-only — do **not** run `migrate deploy` on Neon. See `docs/neon-cutover.md`: (1) `db push` with `schema.postgresql.prisma` on an **empty** branch, (2) then `npm run migrate:postgres` for **data** from a verified SQLite backup.
+
+**Minimum store deployment on Vercel (production):**
+
+- `AUTH_SECRET` (32+ chars, not the example)
+- `DATABASE_URL` (pooled PostgreSQL)
+- `DIRECT_URL` (direct PostgreSQL)
+- `MR_ROBOT_STORE_ONLY=true` if Redis/S3 are not ready yet (homepage + store work; salon/studio/OTP/file uploads need full config)
+
+**Full stack (salon + media):** all variables in the list above, including `REDIS_URL` and S3 keys.
+
+`instrumentation.ts` rejects unsafe production config when `VERCEL_ENV=production`. Preview deployments (`VERCEL_ENV=preview`) skip that gate so PR builds can render.
+
+Set **Node.js 20.x** in the Vercel project. Root directory is the repository root; build output is Next default.

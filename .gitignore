@@ -13,3 +13,6 @@ public/uploads/*
 test-results/
 playwright-report/
 .DS_Store
+.neon
+
+*.tsbuildinfo

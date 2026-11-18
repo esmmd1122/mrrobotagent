@@ -2,6 +2,8 @@ const SECRET_NAMES = ['DATABASE_URL', 'AUTH_SECRET', 'REDIS_URL', 'GEMINI_API_KE
 
 export function isProductionRuntime(env: NodeJS.ProcessEnv = process.env) {
   if (env.NEXT_PHASE === 'phase-production-build') return false
+  // Vercel preview uses NODE_ENV=production but must not run production fail-closed checks.
+  if (env.VERCEL_ENV === 'preview' || env.VERCEL_ENV === 'development') return false
   return env.NODE_ENV === 'production' || env.VERCEL_ENV === 'production'
 }
 
@@ -14,10 +16,13 @@ export function productionProblems(env: NodeJS.ProcessEnv = process.env) {
   if (!env.DATABASE_URL || env.DATABASE_URL.startsWith('file:')) {
     problems.push('DATABASE_URL')
   }
-  if (!env.REDIS_URL) problems.push('REDIS_URL')
-  if (env.OTP_DEV_REVEAL === 'true') problems.push('OTP_DEV_REVEAL')
-  if (!env.S3_BUCKET || !env.S3_ACCESS_KEY_ID || !env.S3_SECRET_ACCESS_KEY) {
-    problems.push('S3_STORAGE')
+  const storeOnly = env.MR_ROBOT_STORE_ONLY === 'true'
+  if (!storeOnly) {
+    if (!env.REDIS_URL) problems.push('REDIS_URL')
+    if (env.OTP_DEV_REVEAL === 'true') problems.push('OTP_DEV_REVEAL')
+    if (!env.S3_BUCKET || !env.S3_ACCESS_KEY_ID || !env.S3_SECRET_ACCESS_KEY) {
+      problems.push('S3_STORAGE')
+    }
   }
   return problems
 }
