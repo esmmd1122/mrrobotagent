@@ -36,8 +36,10 @@ export async function ensureWebsiteSettings() {
   }
 
   const json = JSON.stringify(config)
-  return prisma.websiteSettings.create({
-    data: {
+  return prisma.websiteSettings.upsert({
+    where: { id: SETTINGS_ID },
+    update: {},
+    create: {
       id: SETTINGS_ID,
       draftConfig: json,
       publishedConfig: json,

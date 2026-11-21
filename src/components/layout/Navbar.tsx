@@ -1,17 +1,31 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { Button } from '@/components/ui/Button'
+import { Box, Menu, ShoppingBag, Sparkles, User, X } from 'lucide-react'
+import { useOptionalCart } from '@/components/cart/CartProvider'
 import type { NavLinkConfig } from '@/lib/site-config/types'
 
-const fallbackLinks: NavLinkConfig[] = [
-  { id: 'home', href: '/#home', label: 'خانه', enabled: true },
-  { id: 'subs', href: '/#subscriptions', label: 'اشتراک‌های دیجیتال', enabled: true },
-  { id: 'ai', href: '/#ai', label: 'MR.ROBOT AI', enabled: true },
-  { id: 'contact', href: '/contact', label: 'تماس', enabled: true },
+const CINEMA_HOME_LINKS = [
+  { id: 'intro', href: '#intro', label: 'هویت برند' },
+  { id: 'services', href: '#services', label: 'خدمات' },
+  { id: 'marketplace', href: '#marketplace', label: 'فروشگاه سه‌بعدی' },
+  { id: 'ai-experience', href: '#ai-experience', label: 'هوش مصنوعی' },
+  { id: 'apple-mobile', href: '#apple-mobile', label: 'اپل و موبایل' },
+  { id: 'trust', href: '#trust', label: 'اعتماد و پشتیبانی' },
+] as const
+
+const FALLBACK_LINKS: NavLinkConfig[] = [
+  { id: 'home', href: '/', label: 'خانه', enabled: true },
+  { id: 'shop', href: '/shop', label: 'فروشگاه', enabled: true },
+  { id: 'chat', href: '/chat', label: 'هوش مصنوعی', enabled: true },
+  { id: 'contact', href: '/contact', label: 'تماس با ما', enabled: true },
 ]
+
+function toFaDigits(value: number) {
+  return String(value).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)])
+}
 
 type Props = {
   links?: NavLinkConfig[]
@@ -19,153 +33,276 @@ type Props = {
   cartCount?: number
 }
 
-export function Navbar({ links, purchaseCta, cartCount = 0 }: Props) {
-  const navLinks = (links || fallbackLinks).filter((l) => l.enabled)
-  const cta = purchaseCta || { label: 'خرید اشتراک', href: '/#subscriptions' }
-
-  const [open, setOpen] = useState(false)
+export function Navbar({ links, cartCount = 0 }: Props) {
+  const pathname = usePathname()
+  const cart = useOptionalCart()
+  const [menuOpen, setMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
 
+  const isHome = pathname === '/'
+  const bridge = cart?.cinemaBridge
+  const liveCount = cart ? cart.count : cartCount
+  const secondaryLinks = (links && links.length > 0 ? links : FALLBACK_LINKS).filter(
+    (l) => l.enabled,
+  )
+
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 16)
+    const onScroll = () => setScrolled(window.scrollY > 18)
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
   useEffect(() => {
-    document.body.style.overflow = open ? 'hidden' : ''
-    return () => {
-      document.body.style.overflow = ''
+    setMenuOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false)
     }
-  }, [open])
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [menuOpen])
+
+  const handleOpenCart = () => {
+    if (cart) {
+      cart.openDrawer()
+    }
+  }
 
   return (
-    <header
-      className={`fixed inset-x-0 top-0 z-50 transition-shadow ${scrolled ? 'glass-nav shadow-lg shadow-black/40' : 'bg-transparent'}`}
-    >
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:h-[4.25rem] sm:px-6 lg:px-8">
-        <Link
-          href="/#home"
-          className="group flex items-center gap-2 text-sm font-bold tracking-wide sm:text-base"
-        >
-          <span className="inline-block h-2 w-2 rounded-full bg-mr-red shadow-[0_0_12px_var(--color-mr-red-glow)]" />
-          <span dir="ltr">MR.ROBOT</span>
+    <>
+      <header className={`cinema-navbar ${scrolled ? 'is-scrolled' : ''}`}>
+        <Link href={isHome ? '#hero' : '/'} className="cinema-brand">
+          <span className="cinema-brand-icon" aria-hidden="true">
+            <span className="cinema-brand-eyes">
+              <span />
+              <span />
+            </span>
+          </span>
+          <span className="cinema-brand-wordmark">
+            MR.<em>ROBOT</em>
+          </span>
         </Link>
 
-        <nav className="hidden items-center gap-1 lg:flex" aria-label="منوی اصلی">
-          {navLinks.map((link) => (
-            <NavItem key={link.id} link={link} />
-          ))}
+        <nav aria-label="منوی اصلی">
+          <ul className="cinema-nav-links">
+            {isHome
+              ? CINEMA_HOME_LINKS.map((item) => (
+                  <li key={item.id}>
+                    <a
+                      href={item.href}
+                      className={bridge?.activeChapterId === item.id ? 'is-active' : ''}
+                    >
+                      {item.label}
+                    </a>
+                  </li>
+                ))
+              : secondaryLinks.map((link) => (
+                  <li key={link.id}>
+                    <Link
+                      href={link.href}
+                      className={pathname === link.href ? 'is-active' : ''}
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+          </ul>
         </nav>
 
-        <div className="hidden items-center gap-3 lg:flex">
+        <div className="cinema-nav-actions">
+          {isHome && bridge ? (
+            <>
+              <button
+                type="button"
+                className="cinema-ctrl-pill cinema-desktop-only-pill"
+                onClick={bridge.openGlbModal}
+                title="جایگذاری مدل مرجع رسمی MR.ROBOT (.glb)"
+              >
+                <Box className="h-3.5 w-3.5 text-[#38bdf8]" />
+                <span>مدل مرجع</span>
+                <span className="text-[0.72rem] text-[#7c92b8]" dir="ltr">
+                  GLB
+                </span>
+              </button>
+
+              <button
+                type="button"
+                className={`cinema-ctrl-pill cinema-desktop-only-pill ${
+                  !bridge.reducedMotion ? 'is-active' : ''
+                }`}
+                onClick={bridge.toggleReducedMotion}
+                title="تغییر حالت حرکت سه‌بعدی"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>{bridge.reducedMotion ? 'آرام' : 'سینمایی'}</span>
+              </button>
+            </>
+          ) : null}
+
           <Link
             href="/account"
-            className="rounded-lg border border-mr-border px-3 py-2 text-sm text-white/85 hover:bg-white/5"
+            className="cinema-ctrl-pill cinema-desktop-only-pill"
+            aria-label="حساب کاربری"
           >
-            حساب من
+            <User className="h-3.5 w-3.5" />
+            <span>حساب من</span>
           </Link>
-          <Link
-            href="/cart"
-            className="relative rounded-lg border border-mr-border px-3 py-2 text-sm text-white/85 hover:bg-white/5"
+
+          <button
+            type="button"
+            className="cinema-cart-trigger"
+            onClick={handleOpenCart}
+            aria-label="باز کردن سبد سفارش"
           >
-            سبد
-            {cartCount > 0 ? (
-              <span className="absolute -left-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-mr-red px-1 text-[10px] font-bold">
-                {cartCount > 99 ? '99+' : cartCount}
+            <ShoppingBag className="h-4 w-4" />
+            <span className="cinema-cart-label-sm">سبد سفارش</span>
+            <span className="cinema-cart-badge">{toFaDigits(liveCount)}</span>
+          </button>
+
+          <button
+            type="button"
+            className="cinema-hamburger"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-expanded={menuOpen}
+            aria-label={menuOpen ? 'بستن منو' : 'باز کردن منو'}
+          >
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
+      </header>
+
+      {/* Mobile RTL Navigation Drawer */}
+      <div
+        className={`cinema-backdrop ${menuOpen ? 'is-open' : ''}`}
+        style={{ zIndex: 220 }}
+        onClick={() => setMenuOpen(false)}
+        aria-hidden={!menuOpen}
+      />
+      <aside
+        className={`cinema-mobile-menu ${menuOpen ? 'is-open' : ''}`}
+        aria-label="منوی موبایل"
+        aria-hidden={!menuOpen}
+      >
+        <div className="cinema-drawer-head">
+          <div className="flex items-center gap-2.5">
+            <span className="cinema-brand-icon" aria-hidden="true">
+              <span className="cinema-brand-eyes">
+                <span />
+                <span />
               </span>
-            ) : null}
-          </Link>
-          <Button
-            href={cta.href}
-            variant="primary"
-            className="!py-2.5 !px-5 text-sm"
-            style={{ borderRadius: 'var(--site-btn-radius, 12px)' }}
+            </span>
+            <span className="cinema-brand-wordmark">
+              MR.<em>ROBOT</em>
+            </span>
+          </div>
+          <button
+            type="button"
+            className="cinema-icon-close"
+            onClick={() => setMenuOpen(false)}
+            aria-label="بستن منو"
           >
-            {cta.label}
-          </Button>
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
-        <button
-          type="button"
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-mr-border bg-mr-surface/60 lg:hidden"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          aria-label={open ? 'بستن منو' : 'باز کردن منو'}
-        >
-          <span className="sr-only">{open ? 'بستن' : 'منو'}</span>
-          <div className="flex flex-col gap-1.5">
-            <span className={`block h-0.5 w-5 bg-white transition ${open ? 'translate-y-2 rotate-45' : ''}`} />
-            <span className={`block h-0.5 w-5 bg-white transition ${open ? 'opacity-0' : ''}`} />
-            <span className={`block h-0.5 w-5 bg-white transition ${open ? '-translate-y-2 -rotate-45' : ''}`} />
-          </div>
-        </button>
-      </div>
-
-      <AnimatePresence>
-        {open ? (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="border-t border-mr-border bg-mr-charcoal/95 backdrop-blur-xl lg:hidden"
-          >
-            <nav className="flex flex-col gap-1 p-4" aria-label="منوی موبایل">
-              {navLinks.map((link) => (
+        <nav className="flex flex-1 flex-col gap-1.5 overflow-y-auto p-4" aria-label="لینک‌های موبایل">
+          {isHome
+            ? CINEMA_HOME_LINKS.map((item) => (
+                <a
+                  key={item.id}
+                  href={item.href}
+                  onClick={() => setMenuOpen(false)}
+                  className={`flex min-h-[44px] items-center justify-between rounded-xl px-4 py-2.5 text-sm font-medium transition ${
+                    bridge?.activeChapterId === item.id
+                      ? 'border border-[#38bdf8]/40 bg-[#122650] text-white'
+                      : 'text-[#a8bad8] hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  <span>{item.label}</span>
+                </a>
+              ))
+            : secondaryLinks.map((link) => (
                 <Link
                   key={link.id}
                   href={link.href}
-                  onClick={() => setOpen(false)}
-                  className="rounded-xl px-4 py-3 text-sm text-white/90 hover:bg-white/5"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex min-h-[44px] items-center rounded-xl px-4 py-2.5 text-sm font-medium text-[#a8bad8] hover:bg-white/5 hover:text-white"
                 >
                   {link.label}
                 </Link>
               ))}
-              <Button href={cta.href} variant="primary" className="mt-2 w-full">
-                {cta.label}
-              </Button>
-            </nav>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </header>
-  )
-}
 
-function NavItem({ link }: { link: NavLinkConfig }) {
-  const hasChildren = link.children && link.children.filter((c) => c.enabled).length > 0
-  if (!hasChildren) {
-    return (
-      <Link
-        href={link.href}
-        className="rounded-lg px-3 py-2 text-sm text-white/75 transition hover:bg-white/5 hover:text-white"
-      >
-        {link.label}
-      </Link>
-    )
-  }
-  return (
-    <div className="group relative">
-      <Link
-        href={link.href}
-        className="rounded-lg px-3 py-2 text-sm text-white/75 transition hover:bg-white/5 hover:text-white"
-      >
-        {link.label}
-      </Link>
-      <div className="invisible absolute right-0 top-full z-50 min-w-[180px] rounded-xl border border-mr-border bg-mr-charcoal py-2 opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100">
-        {link.children
-          ?.filter((c) => c.enabled)
-          .map((child) => (
-            <Link
-              key={child.id}
-              href={child.href}
-              className="block px-4 py-2 text-sm text-white/80 hover:bg-white/5"
+          <div className="my-2 border-t border-[#7ea8ff]/15" />
+
+          <Link
+            href="/shop"
+            onClick={() => setMenuOpen(false)}
+            className="flex min-h-[44px] items-center rounded-xl px-4 py-2.5 text-sm font-medium text-[#dbeafe] hover:bg-white/5"
+          >
+            فروشگاه کامل محصولات
+          </Link>
+          <Link
+            href="/account"
+            onClick={() => setMenuOpen(false)}
+            className="flex min-h-[44px] items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-[#dbeafe] hover:bg-white/5"
+          >
+            <User className="h-4 w-4 text-[#38bdf8]" />
+            <span>حساب کاربری و سفارش‌ها</span>
+          </Link>
+          <Link
+            href="/cart"
+            onClick={() => setMenuOpen(false)}
+            className="flex min-h-[44px] items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-[#dbeafe] hover:bg-white/5"
+          >
+            <ShoppingBag className="h-4 w-4 text-[#38bdf8]" />
+            <span>سبد خرید ({toFaDigits(liveCount)})</span>
+          </Link>
+          <Link
+            href="/contact"
+            onClick={() => setMenuOpen(false)}
+            className="flex min-h-[44px] items-center rounded-xl px-4 py-2.5 text-sm font-medium text-[#a8bad8] hover:bg-white/5 hover:text-white"
+          >
+            تماس و پشتیبانی
+          </Link>
+        </nav>
+
+        {isHome && bridge ? (
+          <div className="border-t border-[#7ea8ff]/15 p-4 flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                bridge.toggleReducedMotion()
+              }}
+              className="cinema-btn cinema-btn-subtle cinema-btn-sm w-full"
             >
-              {child.label}
-            </Link>
-          ))}
-      </div>
-    </div>
+              <Sparkles className="h-4 w-4 text-[#38bdf8]" />
+              <span>
+                حالت حرکت سه‌بعدی: {bridge.reducedMotion ? 'آرام' : 'سینمایی'}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false)
+                bridge.openGlbModal()
+              }}
+              className="cinema-btn cinema-btn-buy cinema-btn-sm w-full"
+            >
+              <Box className="h-4 w-4" />
+              <span>بارگذاری مدل مرجع GLB</span>
+            </button>
+          </div>
+        ) : null}
+      </aside>
+    </>
   )
 }

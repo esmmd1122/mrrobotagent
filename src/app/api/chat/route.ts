@@ -2,7 +2,26 @@ import { openai } from '@ai-sdk/openai'
 import { streamText } from 'ai'
 import { createBookingTools } from '@/ai/tools'
 
+function isOpenAiChatConfigured(): boolean {
+  return Boolean(process.env.OPENAI_API_KEY?.trim())
+}
+
+export async function GET() {
+  return Response.json({ configured: isOpenAiChatConfigured() })
+}
+
 export async function POST(req: Request) {
+  if (!isOpenAiChatConfigured()) {
+    return Response.json(
+      {
+        enabled: false,
+        error:
+          'سرویس گفت‌وگوی هوشمند در حال حاضر غیرفعال است. برای فعال‌سازی آن، کلید OPENAI_API_KEY باید در تنظیمات سرور ثبت شود.',
+      },
+      { status: 503 },
+    )
+  }
+
   try {
     const { messages, businessSlug } = await req.json()
 
@@ -20,7 +39,8 @@ export async function POST(req: Request) {
     })
 
     return result.toDataStreamResponse()
-  } catch (error: any) {
-    return Response.json({ error: error.message }, { status: 500 })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'خطا در پردازش درخواست گفت‌وگو'
+    return Response.json({ error: message }, { status: 500 })
   }
 }

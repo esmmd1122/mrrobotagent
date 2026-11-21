@@ -1,0 +1,3953 @@
+این نسخه یک ارتقای بنیادی در کیفیت بصری، کارگردانی هنری، نورپردازی سینمایی و
+زبان طراحی فارسی (RTL) است؛ نه صرفاً افزودن افکت‌های بیشتر.
+
+مهم‌ترین ارتقاهای این نسخه نسبت به پروتوتایپ قبلی
+
+1.  کاراکتر سینمایی و بازطراحی‌شده MR.ROBOT (به‌جای هندسه ساده):
+      - متریال فیزیکی واقعی (MeshPhysicalMaterial) با Sheen پارچه کتان ضخیم،
+        Normal Map و Roughness Map تولیدشده برای بافت پارچه و چین‌وچروک لباس،
+        لبه دوخت ضخیم کلاه، چین‌های یقه، هدفون استودیویی با جزئیات فلزی
+        برس‌خورده و نوار نورانی دقیق قرمز، دستکش‌های مفصلی و نور بازتابی واقعی
+        چشم‌های قرمز روی بافت داخلی کلاه.
+      - پشتیبانی مستقیم از مدل مرجع رسمی شما (.glb): بدون نیاز به تغییر کد،
+        می‌توانید از دکمه «مدل مرجع» در نوار بالا یا تنظیم MR_ROBOT_MODEL_URL
+        مدل رسمی MR.ROBOT را مستقیماً وارد همین نورپردازی، دوربین و انیمیشن‌ها
+        کنید.
+2.  رندر استودیویی با HDRI اختصاصی و Post-Processing کنترل‌شده:
+      - نورپردازی بر پایه Studio Softbox Environment Map (PMREMGenerator) +
+        UnrealBloomPass با آستانه دقیق (فقط چشم‌ها، خطوط هدفون و لبه‌های
+        هولوگرافیک درخشش سینمایی طبیعی دارند؛ بدون مه‌آلودگی مصنوعی).
+3.  محیط سه‌بعدی سه‌لایه با عمق سینمایی (Foreground / Midground / Background):
+      - ستون‌های معماری تیره و مینیمال با شکاف‌های نوری باریک در پس‌زمینه، کف
+        سنگ‌آب‌خورده بازتابنده در میانه، و صفحات شیشه‌ای پارالاکس در پیش‌زمینه
+        برای ایجاد عمق واقعی فیلم‌های موشن‌دیزاین.
+4.  حرکت پیوسته دوربین سینمایی همگام با اسکرول + تعامل واقعی کاراکتر با اشیای
+    هولوگرافیک:
+      - به‌جای پرش ناگهانی بین بخش‌ها، دوربین و ژست دست‌های کاراکتر به‌صورت
+        پیوسته و نرم در طول ۸ سکانس حرکت می‌کنند و هنگام چرخاندن محصولات سه‌بعدی
+        در فروشگاه، کاراکتر نگاه و حرکت دست خود را با شیء هولوگرافیک هماهنگ
+        می‌کند.
+5.  طراحی کامل فارسی با چیدمان استاندارد RTL (فونت Vazirmatn) و حذف کامل اعداد و
+    ادعاهای ساختگی:
+      - تمام قیمت‌ها، آمارها، زمان‌های تحویل و ضمانت‌ها با جایگاه‌های مشخص‌شده
+        ([...]) قرار گرفته‌اند تا آماده جایگذاری داده‌های واقعی برند باشند.
+
+نحوه اجرا
+
+کد زیر را با نام mr-robot-cinema-fa.html ذخیره کرده و مستقیماً در مرورگر مدرن
+(Chrome / Edge / Safari / Firefox) باز کنید.
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MR.ROBOT | فناوری دیجیتال، هوش مصنوعی و خدمات تخصصی</title>
+  <meta name="description" content="تجربه سینمایی و تعاملی برند MR.ROBOT برای خدمات هوش مصنوعی، VPN و V2Ray، خدمات اپل و تعمیرات موبایل و محصولات دیجیتال." />
+
+  <!-- Persian Premium Typography: Vazirmatn + Technical Accent Fonts for Brand/Codes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@600;700&family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- GSAP + ScrollTrigger -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+
+  <!-- Three.js Import Map (Core + PostProcessing + GLTFLoader) -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --bg-void: #02050d;
+      --bg-navy: #060e20;
+      --card-navy: rgba(11, 22, 46, 0.74);
+      --card-navy-hover: rgba(16, 32, 66, 0.88);
+      --surface-elevated: rgba(8, 17, 37, 0.84);
+      --blue-muted: #173369;
+      --blue-cta: #2563eb;
+      --blue-cta-hover: #3b82f6;
+      --cyan-subtle: #38bdf8;
+      --violet-depth: #7c3aed;
+      --red-signature: #ef1d42;
+      --red-glow: rgba(239, 29, 66, 0.32);
+
+      --text-primary: #f4f7fd;
+      --text-secondary: #a8bad8;
+      --text-muted: #6e83a8;
+      --placeholder-bg: rgba(30, 58, 114, 0.35);
+      --placeholder-border: rgba(96, 165, 250, 0.32);
+
+      --border-hairline: rgba(126, 168, 255, 0.14);
+      --border-active: rgba(59, 130, 246, 0.48);
+
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --shadow-cinema: 0 28px 70px rgba(0, 4, 15, 0.62);
+
+      --font-fa: 'Vazirmatn', system-ui, -apple-system, sans-serif;
+      --font-brand: 'Space Grotesk', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background-color: var(--bg-void);
+      color: var(--text-primary);
+      font-family: var(--font-fa);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      overflow-x: hidden;
+    }
+
+    body {
+      background: radial-gradient(circle at 28% 18%, #0a1736 0%, #040917 48%, #02050d 100%);
+      overflow-x: hidden;
+      min-height: 100vh;
+      line-height: 1.8;
+    }
+
+    /* Fixed Real-Time Cinema WebGL Stage */
+    #webgl-stage {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    #webgl-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Subtle Anamorphic Vignette & Film Grain Layer */
+    .film-grade {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse at center, transparent 46%, rgba(2, 5, 13, 0.78) 100%),
+        linear-gradient(180deg, rgba(2, 5, 13, 0.55) 0%, transparent 16%, transparent 84%, rgba(2, 5, 13, 0.75) 100%);
+    }
+
+    /* Cinematic Preloader */
+    #preloader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: #02050d;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+      transition: opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.85s ease;
+    }
+
+    #preloader.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .preloader-mark {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      direction: ltr;
+      font-family: var(--font-brand);
+      font-size: clamp(1.7rem, 3.6vw, 2.5rem);
+      font-weight: 700;
+      letter-spacing: 0.24em;
+    }
+
+    .preloader-eyes {
+      display: flex;
+      gap: 6px;
+    }
+
+    .preloader-eyes span {
+      width: 10px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--red-signature);
+      box-shadow: 0 0 18px var(--red-signature);
+      animation: eyeBreathe 1.6s infinite ease-in-out;
+    }
+
+    .preloader-track {
+      width: 240px;
+      height: 2px;
+      background: rgba(126, 168, 255, 0.16);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .preloader-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue-cta), var(--cyan-subtle), var(--red-signature));
+      transition: width 0.32s ease;
+    }
+
+    .preloader-note {
+      font-size: 0.84rem;
+      color: var(--text-muted);
+    }
+
+    @keyframes eyeBreathe {
+      0%, 100% { opacity: 1; transform: scaleX(1); }
+      50% { opacity: 0.55; transform: scaleX(0.88); }
+    }
+
+    /* Editorial Floating Navigation (RTL) */
+    .navbar {
+      position: fixed;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(1340px, calc(100% - 32px));
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 20px;
+      background: rgba(5, 11, 25, 0.68);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border-hairline);
+      border-radius: 16px;
+      box-shadow: 0 14px 44px rgba(0, 4, 15, 0.45);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(155deg, #101f3f, #050a16);
+      border: 1px solid rgba(239, 29, 66, 0.42);
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 20px rgba(239, 29, 66, 0.16);
+    }
+
+    .brand-icon-eyes {
+      display: flex;
+      gap: 5px;
+      direction: ltr;
+    }
+
+    .brand-icon-eyes span {
+      width: 6px;
+      height: 2.5px;
+      border-radius: 2px;
+      background: var(--red-signature);
+      box-shadow: 0 0 8px var(--red-signature);
+    }
+
+    .brand-wordmark {
+      direction: ltr;
+      font-family: var(--font-brand);
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      font-size: 1.05rem;
+    }
+
+    .brand-wordmark em {
+      font-style: normal;
+      color: var(--red-signature);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: var(--text-secondary);
+      font-size: 0.88rem;
+      font-weight: 500;
+      transition: color 0.25s ease;
+      position: relative;
+      padding: 4px 0;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.active {
+      color: #ffffff;
+    }
+
+    .nav-links a.active::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      left: 0;
+      bottom: -4px;
+      height: 2px;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--cyan-subtle), var(--blue-cta));
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .ctrl-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: rgba(16, 33, 68, 0.62);
+      border: 1px solid var(--border-hairline);
+      color: var(--text-secondary);
+      font-family: var(--font-fa);
+      font-size: 0.78rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .ctrl-pill:hover {
+      border-color: var(--border-active);
+      color: #ffffff;
+      background: rgba(24, 48, 96, 0.8);
+    }
+
+    .ctrl-pill.is-active {
+      color: var(--cyan-subtle);
+    }
+
+    .cart-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 15px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #17346e, #2563eb);
+      border: 1px solid rgba(96, 165, 250, 0.48);
+      color: #ffffff;
+      font-family: var(--font-fa);
+      font-weight: 600;
+      font-size: 0.84rem;
+      cursor: pointer;
+      transition: transform 0.22s ease, box-shadow 0.25s ease, filter 0.22s ease;
+    }
+
+    .cart-trigger:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 26px rgba(37, 99, 235, 0.36);
+      filter: brightness(1.06);
+    }
+
+    .cart-badge {
+      min-width: 21px;
+      height: 21px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: var(--red-signature);
+      color: #fff;
+      font-size: 0.74rem;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 12px rgba(239, 29, 66, 0.5);
+    }
+
+    /* Left-side Cinema Chapter Rail (RTL Ergonomics) */
+    .chapter-rail {
+      position: fixed;
+      left: 22px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 80;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .chapter-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--font-fa);
+      font-size: 0.74rem;
+      cursor: pointer;
+      transition: color 0.25s ease;
+    }
+
+    .chapter-btn .pip {
+      width: 7px;
+      height: 7px;
+      border-radius: 99px;
+      background: rgba(168, 186, 216, 0.28);
+      border: 1px solid rgba(168, 186, 216, 0.45);
+      transition: all 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .chapter-btn .chapter-name {
+      opacity: 0;
+      transform: translateX(-6px);
+      transition: all 0.25s ease;
+      background: rgba(6, 13, 29, 0.86);
+      border: 1px solid var(--border-hairline);
+      padding: 3px 10px;
+      border-radius: 8px;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    .chapter-btn:hover .chapter-name,
+    .chapter-btn.active .chapter-name {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .chapter-btn.active .pip {
+      height: 24px;
+      background: var(--red-signature);
+      border-color: var(--red-signature);
+      box-shadow: 0 0 14px var(--red-signature);
+    }
+
+    .chapter-btn.active {
+      color: #ffffff;
+    }
+
+    /* Scrollable Story Container */
+    main {
+      position: relative;
+      z-index: 10;
+    }
+
+    section.story-scene {
+      min-height: 100vh;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      padding: 128px 28px 104px;
+      position: relative;
+    }
+
+    .container {
+      width: min(1280px, 100%);
+      margin: 0 auto;
+    }
+
+    /* Editorial Persian Typography & Hierarchy */
+    .scene-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(12, 26, 56, 0.72);
+      border: 1px solid var(--border-hairline);
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--cyan-subtle);
+      margin-bottom: 22px;
+      backdrop-filter: blur(12px);
+    }
+
+    .scene-kicker .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--red-signature);
+      box-shadow: 0 0 10px var(--red-signature);
+    }
+
+    .scene-kicker .code {
+      direction: ltr;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    h1, h2, h3, h4 {
+      font-family: var(--font-fa);
+      font-weight: 800;
+      line-height: 1.32;
+    }
+
+    .hero-heading {
+      font-size: clamp(2.45rem, 5.1vw, 4.35rem);
+      font-weight: 900;
+      line-height: 1.24;
+      margin-bottom: 22px;
+    }
+
+    .section-heading {
+      font-size: clamp(1.9rem, 3.6vw, 3.05rem);
+      font-weight: 800;
+      margin-bottom: 18px;
+    }
+
+    .title-accent {
+      background: linear-gradient(125deg, #ffffff 0%, #bfd9ff 58%, #38bdf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-inline {
+      direction: ltr;
+      display: inline-block;
+      font-family: var(--font-brand);
+      letter-spacing: 0.06em;
+    }
+
+    .lead-text {
+      font-size: clamp(0.98rem, 1.3vw, 1.12rem);
+      color: var(--text-secondary);
+      line-height: 1.92;
+      max-width: 52ch;
+      margin-bottom: 30px;
+      font-weight: 400;
+    }
+
+    /* Clearly Marked Placeholder Chip (Zero Fabricated Numbers/Prices) */
+    .placeholder-slot {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      background: var(--placeholder-bg);
+      border: 1px dashed var(--placeholder-border);
+      color: #cfe3ff;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    /* Customer-Friendly Commerce Button System */
+    .cta-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      padding: 13px 24px;
+      border-radius: 12px;
+      font-family: var(--font-fa);
+      font-weight: 600;
+      font-size: 0.92rem;
+      text-decoration: none;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease, background 0.25s ease, border-color 0.25s ease;
+    }
+
+    /* Soft Navy & Electric Blue Purchase Buttons — High Contrast & Welcoming */
+    .btn-buy {
+      background: linear-gradient(135deg, #1b3d80 0%, #2563eb 100%);
+      color: #ffffff;
+      border-color: rgba(96, 165, 250, 0.45);
+      box-shadow: 0 10px 28px rgba(37, 99, 235, 0.26);
+    }
+
+    .btn-buy:hover {
+      transform: translateY(-2px);
+      background: linear-gradient(135deg, #214a99 0%, #3b82f6 100%);
+      box-shadow: 0 14px 34px rgba(59, 130, 246, 0.42);
+    }
+
+    /* Signature Red Neon — Strictly Reserved for Flagship Actions */
+    .btn-signature {
+      background: linear-gradient(135deg, #c81234 0%, #ef1d42 100%);
+      color: #ffffff;
+      border-color: rgba(255, 118, 142, 0.5);
+      box-shadow: 0 10px 30px rgba(239, 29, 66, 0.32);
+    }
+
+    .btn-signature:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 40px rgba(239, 29, 66, 0.48);
+      filter: brightness(1.06);
+    }
+
+    .btn-subtle {
+      background: rgba(13, 27, 56, 0.7);
+      color: var(--text-primary);
+      border-color: var(--border-hairline);
+      backdrop-filter: blur(12px);
+    }
+
+    .btn-subtle:hover {
+      transform: translateY(-2px);
+      border-color: var(--border-active);
+      background: rgba(21, 43, 86, 0.85);
+    }
+
+    .btn-sm {
+      padding: 9px 16px;
+      font-size: 0.83rem;
+      border-radius: 10px;
+    }
+
+    /* Premium Navy Service Cards */
+    .navy-card {
+      background: var(--card-navy);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-xl);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: var(--shadow-cinema);
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s ease, background 0.3s ease;
+    }
+
+    .navy-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(145deg, rgba(59, 130, 246, 0.09) 0%, transparent 48%, rgba(56, 189, 248, 0.05) 100%);
+      pointer-events: none;
+    }
+
+    .navy-card:hover {
+      transform: translateY(-5px);
+      border-color: var(--border-active);
+      background: var(--card-navy-hover);
+    }
+
+    /* SCENE 1: HERO (RTL: Copy Right, MR.ROBOT Left) */
+    .split-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
+      gap: 48px;
+      align-items: center;
+    }
+
+    .hero-meta-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 38px;
+      max-width: 590px;
+    }
+
+    .meta-tile {
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(9, 19, 41, 0.64);
+      border: 1px solid var(--border-hairline);
+      backdrop-filter: blur(12px);
+    }
+
+    .meta-tile strong {
+      display: block;
+      font-size: 0.88rem;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .meta-tile span {
+      display: block;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+
+    .scroll-indicator {
+      position: absolute;
+      bottom: 26px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+
+    .scroll-line {
+      width: 1px;
+      height: 36px;
+      background: linear-gradient(180deg, rgba(56, 189, 248, 0.75), transparent);
+      animation: scrollPulse 2s infinite ease-in-out;
+    }
+
+    @keyframes scrollPulse {
+      0%, 100% { transform: scaleY(0.5); opacity: 0.4; }
+      50% { transform: scaleY(1); opacity: 1; }
+    }
+
+    /* SCENE 2: BRAND INTRO (RTL: MR.ROBOT Right, Editorial Story Left) */
+    .split-intro {
+      display: grid;
+      grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
+      gap: 52px;
+      align-items: center;
+    }
+
+    .identity-pillars {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 26px;
+    }
+
+    .pillar-box {
+      padding: 20px;
+      border-radius: 16px;
+      background: rgba(10, 21, 45, 0.7);
+      border: 1px solid var(--border-hairline);
+      backdrop-filter: blur(14px);
+    }
+
+    .pillar-num {
+      display: inline-block;
+      direction: ltr;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--cyan-subtle);
+      margin-bottom: 8px;
+    }
+
+    .pillar-box h3 {
+      font-size: 1.02rem;
+      margin-bottom: 6px;
+    }
+
+    .pillar-box p {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.78;
+    }
+
+    /* SCENE 3: SERVICES SHOWCASE */
+    .centered-intro {
+      text-align: center;
+      max-width: 740px;
+      margin: 0 auto 48px;
+    }
+
+    .centered-intro .lead-text {
+      margin-inline: auto;
+    }
+
+    .services-bento {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .service-card {
+      grid-column: span 4;
+      padding: 26px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 300px;
+    }
+
+    .service-card.span-6 {
+      grid-column: span 6;
+    }
+
+    .service-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .service-glyph {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(145deg, rgba(37, 99, 235, 0.22), rgba(56, 189, 248, 0.08));
+      border: 1px solid rgba(96, 165, 250, 0.34);
+      display: grid;
+      place-items: center;
+      color: var(--cyan-subtle);
+    }
+
+    .service-tag {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(16, 35, 74, 0.85);
+      border: 1px solid var(--border-hairline);
+      color: #a9ccff;
+    }
+
+    .service-tag.featured {
+      background: rgba(239, 29, 66, 0.14);
+      border-color: rgba(239, 29, 66, 0.38);
+      color: #ff99ab;
+    }
+
+    .service-card h3 {
+      font-size: 1.24rem;
+      margin-bottom: 10px;
+    }
+
+    .service-card p {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.82;
+      margin-bottom: 22px;
+    }
+
+    .service-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-hairline);
+    }
+
+    /* SCENE 4: INTERACTIVE 3D MARKETPLACE */
+    .market-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+      gap: 30px;
+      align-items: stretch;
+    }
+
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .filter-btn {
+      padding: 8px 14px;
+      border-radius: 10px;
+      background: rgba(11, 23, 49, 0.74);
+      border: 1px solid var(--border-hairline);
+      color: var(--text-secondary);
+      font-family: var(--font-fa);
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.24s ease;
+    }
+
+    .filter-btn:hover {
+      border-color: var(--border-active);
+      color: #fff;
+    }
+
+    .filter-btn.active {
+      background: linear-gradient(135deg, #1a3a7a, #2563eb);
+      color: #fff;
+      border-color: rgba(96, 165, 250, 0.56);
+    }
+
+    .catalog-list {
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+
+    .catalog-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 18px;
+      border-radius: 16px;
+      background: rgba(10, 21, 44, 0.72);
+      border: 1px solid var(--border-hairline);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      backdrop-filter: blur(14px);
+    }
+
+    .catalog-item:hover {
+      border-color: rgba(96, 165, 250, 0.44);
+      background: rgba(15, 31, 64, 0.84);
+    }
+
+    .catalog-item.selected {
+      border-color: var(--cyan-subtle);
+      background: rgba(18, 39, 82, 0.88);
+      box-shadow: 0 12px 34px rgba(0, 8, 28, 0.55);
+    }
+
+    .catalog-item h4 {
+      font-size: 1.02rem;
+      margin-bottom: 4px;
+    }
+
+    .catalog-item p {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    /* Transparent 3D Hologram Window */
+    .stage-frame {
+      border-radius: 24px;
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      background: linear-gradient(180deg, rgba(6, 14, 34, 0.22) 0%, rgba(5, 11, 25, 0.84) 100%);
+      backdrop-filter: blur(4px);
+      padding: 22px;
+      min-height: 520px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .stage-frame:active {
+      cursor: grabbing;
+    }
+
+    .stage-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.76rem;
+    }
+
+    .stage-bar .mono-code {
+      direction: ltr;
+      font-family: var(--font-mono);
+      color: var(--cyan-subtle);
+    }
+
+    .drag-pill {
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: rgba(6, 14, 32, 0.76);
+      border: 1px solid var(--border-hairline);
+      color: var(--text-secondary);
+    }
+
+    .stage-panel {
+      background: rgba(7, 15, 34, 0.86);
+      border: 1px solid var(--border-hairline);
+      border-radius: 18px;
+      padding: 20px;
+      backdrop-filter: blur(16px);
+    }
+
+    .spec-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 14px 0 18px;
+    }
+
+    .spec-tag {
+      font-size: 0.76rem;
+      padding: 4px 10px;
+      border-radius: 8px;
+      background: rgba(19, 41, 84, 0.74);
+      border: 1px solid rgba(96, 165, 250, 0.24);
+      color: #c8defc;
+    }
+
+    /* SCENE 5: AI TECHNOLOGY EXPERIENCE */
+    .ai-split {
+      display: grid;
+      grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
+      gap: 44px;
+      align-items: center;
+    }
+
+    .neural-console {
+      padding: 28px;
+      border-radius: 22px;
+      background: rgba(11, 17, 42, 0.8);
+      border: 1px solid rgba(124, 58, 237, 0.36);
+      box-shadow: 0 26px 68px rgba(8, 4, 28, 0.64);
+      backdrop-filter: blur(18px);
+    }
+
+    .intent-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin: 16px 0 22px;
+    }
+
+    .intent-btn {
+      padding: 9px 15px;
+      border-radius: 10px;
+      background: rgba(24, 25, 68, 0.72);
+      border: 1px solid rgba(124, 58, 237, 0.34);
+      color: #d7d0ff;
+      font-family: var(--font-fa);
+      font-size: 0.84rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.24s ease;
+    }
+
+    .intent-btn:hover,
+    .intent-btn.active {
+      background: linear-gradient(135deg, #43228a, #2563eb);
+      border-color: var(--cyan-subtle);
+      color: #ffffff;
+    }
+
+    .ai-result-box {
+      padding: 20px;
+      border-radius: 16px;
+      background: rgba(6, 13, 31, 0.84);
+      border: 1px solid rgba(56, 189, 248, 0.26);
+    }
+
+    .ai-features {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin: 16px 0 20px;
+    }
+
+    .ai-feature-pill {
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(16, 29, 60, 0.74);
+      border: 1px solid var(--border-hairline);
+      font-size: 0.82rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ai-feature-pill::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cyan-subtle);
+      flex-shrink: 0;
+    }
+
+    /* SCENE 6: APPLE & MOBILE SERVICES */
+    .apple-split {
+      display: grid;
+      grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
+      gap: 44px;
+      align-items: center;
+    }
+
+    .apple-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .apple-card {
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .apple-card h3 {
+      font-size: 1.08rem;
+      margin-top: 6px;
+    }
+
+    .apple-card p {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.8;
+    }
+
+    /* SCENE 7: TRUST, SUPPORT & CUSTOMER CONFIDENCE */
+    .trust-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .trust-card {
+      padding: 24px;
+    }
+
+    .trust-card h3 {
+      font-size: 1.02rem;
+      margin: 12px 0 8px;
+    }
+
+    .trust-card p {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.8;
+    }
+
+    .feedback-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .feedback-card {
+      padding: 22px;
+    }
+
+    .feedback-card p {
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      margin: 12px 0 14px;
+      line-height: 1.85;
+    }
+
+    .feedback-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.76rem;
+      color: var(--text-muted);
+    }
+
+    /* SCENE 8: FINAL CINEMATIC BRAND FINALE */
+    .finale-scene {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      text-align: center;
+      padding-bottom: 48px !important;
+    }
+
+    .finale-card {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 40px 32px;
+      border-radius: 26px;
+      background: linear-gradient(180deg, rgba(6, 13, 30, 0.56) 0%, rgba(5, 10, 24, 0.9) 100%);
+      border: 1px solid rgba(239, 29, 66, 0.28);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 32px 90px rgba(0, 0, 0, 0.68);
+    }
+
+    .finale-wordmark {
+      direction: ltr;
+      font-family: var(--font-brand);
+      font-size: clamp(2.4rem, 5.8vw, 4.3rem);
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      margin-bottom: 14px;
+    }
+
+    .finale-wordmark span {
+      color: var(--red-signature);
+      text-shadow: 0 0 30px rgba(239, 29, 66, 0.42);
+    }
+
+    .footer-strip {
+      margin-top: 42px;
+      padding-top: 22px;
+      border-top: 1px solid var(--border-hairline);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .footer-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .footer-nav a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .footer-nav a:hover {
+      color: var(--cyan-subtle);
+    }
+
+    /* RTL Slide-Over Order Drawer (Slides from Left Edge) */
+    .backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 5, 13, 0.72);
+      backdrop-filter: blur(6px);
+      z-index: 200;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .backdrop.open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .order-drawer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: min(440px, 100vw);
+      background: rgba(7, 14, 32, 0.96);
+      border-right: 1px solid var(--border-active);
+      z-index: 210;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(-100%);
+      transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+      box-shadow: 24px 0 64px rgba(0, 0, 0, 0.65);
+    }
+
+    .order-drawer.open {
+      transform: translateX(0);
+    }
+
+    .drawer-head {
+      padding: 22px 24px;
+      border-bottom: 1px solid var(--border-hairline);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .icon-close {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: rgba(18, 36, 72, 0.66);
+      border: 1px solid var(--border-hairline);
+      color: #fff;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+
+    .drawer-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .bag-row {
+      padding: 14px;
+      border-radius: 14px;
+      background: rgba(14, 28, 58, 0.74);
+      border: 1px solid var(--border-hairline);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .bag-row h4 {
+      font-size: 0.94rem;
+      margin-bottom: 4px;
+    }
+
+    .bag-row small {
+      color: var(--text-muted);
+      font-size: 0.76rem;
+    }
+
+    .qty-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .qty-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: rgba(24, 49, 98, 0.85);
+      border: 1px solid var(--border-hairline);
+      color: #fff;
+      cursor: pointer;
+      font-family: var(--font-fa);
+    }
+
+    .drawer-foot {
+      padding: 20px 24px;
+      border-top: 1px solid var(--border-hairline);
+      background: rgba(5, 11, 26, 0.94);
+    }
+
+    .field-input {
+      width: 100%;
+      padding: 11px 14px;
+      border-radius: 10px;
+      background: rgba(12, 25, 52, 0.88);
+      border: 1px solid var(--border-hairline);
+      color: #ffffff;
+      font-family: var(--font-fa);
+      font-size: 0.88rem;
+      margin-bottom: 12px;
+      outline: none;
+    }
+
+    .field-input:focus {
+      border-color: var(--cyan-subtle);
+    }
+
+    /* Request & Reference Model Modals */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 220;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(2, 5, 13, 0.78);
+      backdrop-filter: blur(8px);
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.28s ease;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-box {
+      width: min(520px, 100%);
+      padding: 28px;
+      border-radius: 22px;
+      background: #08132b;
+      border: 1px solid var(--border-active);
+      box-shadow: 0 32px 90px rgba(0, 0, 0, 0.78);
+    }
+
+    .dropzone {
+      border: 1.5px dashed rgba(56, 189, 248, 0.45);
+      border-radius: 14px;
+      padding: 24px;
+      text-align: center;
+      background: rgba(12, 26, 56, 0.52);
+      margin-bottom: 16px;
+      cursor: pointer;
+      transition: border-color 0.25s ease, background 0.25s ease;
+    }
+
+    .dropzone:hover {
+      border-color: var(--cyan-subtle);
+      background: rgba(18, 38, 80, 0.68);
+    }
+
+    /* Toast Feedback */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(28px);
+      z-index: 300;
+      padding: 12px 22px;
+      border-radius: 12px;
+      background: rgba(9, 21, 46, 0.96);
+      border: 1px solid var(--cyan-subtle);
+      color: #ffffff;
+      font-size: 0.88rem;
+      box-shadow: 0 16px 44px rgba(0, 0, 0, 0.58);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Responsive Mobile-First Layout */
+    @media (max-width: 1040px) {
+      .nav-links, .chapter-rail { display: none; }
+      .split-hero,
+      .split-intro,
+      .market-grid,
+      .ai-split,
+      .apple-split {
+        grid-template-columns: 1fr;
+      }
+      .service-card,
+      .service-card.span-6 {
+        grid-column: span 6;
+      }
+      .trust-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .feedback-grid {
+        grid-template-columns: 1fr;
+      }
+      .stage-frame {
+        min-height: 430px;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .navbar { top: 10px; padding: 10px 14px; }
+      .ctrl-pill .hide-sm { display: none; }
+      section.story-scene { padding: 98px 16px 76px; }
+      .service-card,
+      .service-card.span-6 {
+        grid-column: span 12;
+      }
+      .identity-pillars,
+      .apple-grid,
+      .ai-features,
+      .trust-grid,
+      .hero-meta-strip {
+        grid-template-columns: 1fr;
+      }
+      .hero-panel-mobile {
+        background: rgba(5, 11, 26, 0.72);
+        padding: 22px;
+        border-radius: 20px;
+        border: 1px solid var(--border-hairline);
+        backdrop-filter: blur(14px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Cinematic Preloader -->
+  <div id="preloader">
+    <div class="preloader-mark">
+      <div class="preloader-eyes"><span></span><span></span></div>
+      <span>MR.ROBOT</span>
+    </div>
+    <div class="preloader-track">
+      <div class="preloader-fill" id="preloader-fill"></div>
+    </div>
+    <div class="preloader-note" id="preloader-note">در حال آماده‌سازی صحنه سه‌بعدی و نورپردازی استودیویی...</div>
+  </div>
+
+  <!-- Full-Viewport Real-Time Cinema WebGL Canvas -->
+  <div id="webgl-stage" aria-hidden="true">
+    <canvas id="webgl-canvas"></canvas>
+  </div>
+  <div class="film-grade" aria-hidden="true"></div>
+
+  <!-- Top Navigation -->
+  <header class="navbar">
+    <a href="#hero" class="brand">
+      <span class="brand-icon">
+        <span class="brand-icon-eyes"><span></span><span></span></span>
+      </span>
+      <span class="brand-wordmark">MR.<em>ROBOT</em></span>
+    </a>
+
+    <nav aria-label="منوی اصلی">
+      <ul class="nav-links">
+        <li><a href="#intro" data-nav="intro">هویت برند</a></li>
+        <li><a href="#services" data-nav="services">خدمات</a></li>
+        <li><a href="#marketplace" data-nav="marketplace">فروشگاه سه‌بعدی</a></li>
+        <li><a href="#ai-experience" data-nav="ai-experience">هوش مصنوعی</a></li>
+        <li><a href="#apple-mobile" data-nav="apple-mobile">اپل و موبایل</a></li>
+        <li><a href="#trust" data-nav="trust">اعتماد و پشتیبانی</a></li>
+      </ul>
+    </nav>
+
+    <div class="nav-actions">
+      <button class="ctrl-pill" id="open-ref-modal" title="جایگذاری مدل مرجع رسمی MR.ROBOT">
+        <span>مدل مرجع</span>
+        <span class="hide-sm">GLB</span>
+      </button>
+      <button class="ctrl-pill is-active" id="motion-toggle" title="تغییر حالت حرکت سه‌بعدی">
+        <span>حرکت</span>
+        <span class="hide-sm" id="motion-label">سینمایی</span>
+      </button>
+      <button class="cart-trigger" id="open-bag-btn">
+        <span>سبد سفارش</span>
+        <span class="cart-badge" id="bag-count">۰</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Left Cinema Scene Rail -->
+  <aside class="chapter-rail" aria-label="سکانس‌های صفحه">
+    <button class="chapter-btn active" data-target="#hero"><span class="pip"></span><span class="chapter-name">۰۱ آغاز</span></button>
+    <button class="chapter-btn" data-target="#intro"><span class="pip"></span><span class="chapter-name">۰۲ هویت برند</span></button>
+    <button class="chapter-btn" data-target="#services"><span class="pip"></span><span class="chapter-name">۰۳ ویترین خدمات</span></button>
+    <button class="chapter-btn" data-target="#marketplace"><span class="pip"></span><span class="chapter-name">۰۴ فروشگاه سه‌بعدی</span></button>
+    <button class="chapter-btn" data-target="#ai-experience"><span class="pip"></span><span class="chapter-name">۰۵ فناوری هوش مصنوعی</span></button>
+    <button class="chapter-btn" data-target="#apple-mobile"><span class="pip"></span><span class="chapter-name">۰۶ اپل و موبایل</span></button>
+    <button class="chapter-btn" data-target="#trust"><span class="pip"></span><span class="chapter-name">۰۷ اعتماد و پشتیبانی</span></button>
+    <button class="chapter-btn" data-target="#finale"><span class="pip"></span><span class="chapter-name">۰۸ پرده پایانی</span></button>
+  </aside>
+
+  <main>
+    <!-- 1. CINEMATIC INTERACTIVE HERO -->
+    <section class="story-scene" id="hero" data-scene="0">
+      <div class="container">
+        <div class="split-hero">
+          <div class="hero-panel-mobile">
+            <div class="scene-kicker">
+              <span class="dot"></span>
+              <span>دنیای فناوری دیجیتال و هوش مصنوعی</span>
+              <span class="code">SCENE 01</span>
+            </div>
+            <h1 class="hero-heading">
+              نسل نوین خدمات دیجیتال<br />
+              با امضای <span class="title-accent brand-inline">MR.ROBOT</span>
+            </h1>
+            <p class="lead-text">
+              مرجع تخصصی اشتراک‌های هوش مصنوعی، سرویس‌های امن VPN و V2Ray، خدمات اپل آیدی و آیکلود، تعمیرات تخصصی موبایل و محصولات دیجیتال — در تجربه‌ای شفاف، سریع و قابل اعتماد.
+            </p>
+            <div class="cta-group">
+              <a href="#marketplace" class="btn btn-signature">ورود به فروشگاه سه‌بعدی &larr;</a>
+              <a href="#services" class="btn btn-buy">مشاهده دسته‌بندی خدمات</a>
+              <button class="btn btn-subtle" data-request="مشاوره و ثبت درخواست اختصاصی">درخواست مشاوره</button>
+            </div>
+
+            <!-- Clearly Marked Placeholders (No Fabricated Metrics) -->
+            <div class="hero-meta-strip">
+              <div class="meta-tile">
+                <strong>[زمان تحویل رسمی]</strong>
+                <span>جایگاه شاخص سرعت تحویل</span>
+              </div>
+              <div class="meta-tile">
+                <strong>[ساعات پاسخ‌گویی]</strong>
+                <span>جایگاه برنامه پشتیبانی</span>
+              </div>
+              <div class="meta-tile">
+                <strong>[شرایط ضمانت برند]</strong>
+                <span>جایگاه تعهد رسمی خدمات</span>
+              </div>
+            </div>
+          </div>
+          <!-- Left side intentionally frames the sculptural 3D MR.ROBOT mascot -->
+          <div aria-hidden="true"></div>
+        </div>
+      </div>
+
+      <div class="scroll-indicator">
+        <span>برای ادامه داستان اسکرول کنید</span>
+        <div class="scroll-line"></div>
+      </div>
+    </section>
+
+    <!-- 2. MR.ROBOT BRAND INTRODUCTION -->
+    <section class="story-scene" id="intro" data-scene="1">
+      <div class="container">
+        <div class="split-intro">
+          <!-- Right side frames MR.ROBOT interacting with the floating holographic core -->
+          <div aria-hidden="true"></div>
+          <div>
+            <div class="scene-kicker">
+              <span class="dot"></span>
+              <span>هویت و فلسفه برند</span>
+              <span class="code">SCENE 02</span>
+            </div>
+            <h2 class="section-heading">
+              تخصص فنی عمیق، در کنار <span class="title-accent">تجربه خریدی ساده و مطمئن</span>
+            </h2>
+            <p class="lead-text">
+              در <span class="brand-inline">MR.ROBOT</span> پیچیدگی‌های فنی دنیای سایبری و ابزارهای جهانی به خدماتی شفاف، امن و قابل دسترس تبدیل می‌شوند؛ تا هر کاربر بدون دغدغه به بهترین فناوری‌های روز متصل شود.
+            </p>
+            <div class="identity-pillars">
+              <div class="pillar-box">
+                <span class="pillar-num">01</span>
+                <h3>شفافیت کامل در خرید</h3>
+                <p>معرفی دقیق هر سرویس، شرایط فعال‌سازی و پشتیبانی پیش از ثبت نهایی سفارش.</p>
+              </div>
+              <div class="pillar-box">
+                <span class="pillar-num">02</span>
+                <h3>امنیت و حریم خصوصی</h3>
+                <p>تمرکز بر اتصال پایدار، ساختار امن و حفظ کامل اطلاعات شخصی کاربران.</p>
+              </div>
+              <div class="pillar-box">
+                <span class="pillar-num">03</span>
+                <h3>تخصص سخت‌افزار و نرم‌افزار</h3>
+                <p>پوشش یکپارچه از اشتراک‌های هوش مصنوعی تا خدمات تخصصی اکوسیستم اپل و موبایل.</p>
+              </div>
+              <div class="pillar-box">
+                <span class="pillar-num">04</span>
+                <h3>همراهی کارشناس واقعی</h3>
+                <p>ارتباط مستقیم با تیم فنی برای راهنمایی نصب، عیب‌یابی و انتخاب بهترین سرویس.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. ANIMATED SERVICE SHOWCASE -->
+    <section class="story-scene" id="services" data-scene="2">
+      <div class="container">
+        <div class="centered-intro">
+          <div class="scene-kicker">
+            <span class="dot"></span>
+            <span>ویترین خدمات تخصصی</span>
+            <span class="code">SCENE 03</span>
+          </div>
+          <h2 class="section-heading">تمام نیازهای دیجیتال شما در <span class="title-accent">یک مجموعه یکپارچه</span></h2>
+          <p class="lead-text">
+            دسته‌بندی مورد نظر خود را انتخاب کنید تا جزئیات سرویس را ببینید، به سبد سفارش اضافه کنید یا درخواست اختصاصی ثبت نمایید.
+          </p>
+        </div>
+
+        <div class="services-bento">
+          <!-- 1. AI Accounts & Subscriptions -->
+          <article class="navy-card service-card span-6">
+            <div>
+              <div class="service-head">
+                <div class="service-glyph">
+                  <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 1 4 4v1a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-1v3a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-3H8a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3V6a4 4 0 0 1 4-4z"/><circle cx="9.5" cy="10.5" r="1"/><circle cx="14.5" cy="10.5" r="1"/></svg>
+                </div>
+                <span class="service-tag featured">پرمخاطب</span>
+              </div>
+              <h3>اکانت‌ها و اشتراک‌های هوش مصنوعی</h3>
+              <p>تهیه و فعال‌سازی اشتراک ابزارهای پیشرو هوش مصنوعی برای برنامه‌نویسی، طراحی، پژوهش و تولید محتوا با راهنمای کامل استفاده.</p>
+            </div>
+            <div class="service-foot">
+              <span class="placeholder-slot">[تعرفه اشتراک‌های AI]</span>
+              <div class="cta-group">
+                <button class="btn btn-buy btn-sm" data-add-item="ai-suite">افزودن به سفارش</button>
+                <a href="#ai-experience" class="btn btn-subtle btn-sm">انتخاب پلن</a>
+              </div>
+            </div>
+          </article>
+
+          <!-- 2. VPN & V2Ray -->
+          <article class="navy-card service-card span-6">
+            <div>
+              <div class="service-head">
+                <div class="service-glyph">
+                  <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+                </div>
+                <span class="service-tag">اتصال امن</span>
+              </div>
+              <h3>سرویس‌های VPN و V2Ray</h3>
+              <p>کانفیگ‌های اختصاصی و پایدار V2Ray و سرویس‌های VPN با راه‌اندازی آسان روی iOS، اندروید، ویندوز و مک‌او‌اس.</p>
+            </div>
+            <div class="service-foot">
+              <span class="placeholder-slot">[تعرفه پلن‌های V2Ray]</span>
+              <div class="cta-group">
+                <button class="btn btn-buy btn-sm" data-add-item="v2ray-core">افزودن به سفارش</button>
+                <a href="#marketplace" class="btn btn-subtle btn-sm" data-inspect-id="v2ray-core">نمای سه‌بعدی</a>
+              </div>
+            </div>
+          </article>
+
+          <!-- 3. Apple ID, iCloud & Apple Services -->
+          <article class="navy-card service-card">
+            <div>
+              <div class="service-head">
+                <div class="service-glyph">
+                  <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="3"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                </div>
+                <span class="service-tag">اکوسیستم اپل</span>
+              </div>
+              <h3>اپل آیدی، آیکلود و خدمات اپل</h3>
+              <p>ساخت و بازیابی اپل آیدی معتبر، ارتقای فضای iCloud+، گیفت‌کارت اپ‌استور و سرویس‌های اختصاصی اپل.</p>
+            </div>
+            <div class="service-foot">
+              <span class="placeholder-slot">[جایگاه قیمت]</span>
+              <button class="btn btn-buy btn-sm" data-add-item="apple-kit">سفارش سرویس</button>
+            </div>
+          </article>
+
+          <!-- 4. Mobile Services & Repair -->
+          <article class="navy-card service-card">
+            <div>
+              <div class="service-head">
+                <div class="service-glyph">
+                  <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                </div>
+                <span class="service-tag">تخصصی</span>
+              </div>
+              <h3>خدمات و تعمیرات موبایل</h3>
+              <p>عیب‌یابی دقیق، تعمیرات سخت‌افزاری و نرم‌افزاری، بازیابی سیستم‌عامل و مشاوره پیش از تعمیر گوشی‌های هوشمند.</p>
+            </div>
+            <div class="service-foot">
+              <span class="placeholder-slot">[برآورد هزینه]</span>
+              <button class="btn btn-buy btn-sm" data-request="ثبت درخواست تعمیر و خدمات موبایل">ثبت درخواست</button>
+            </div>
+          </article>
+
+          <!-- 5. Digital Products & Services -->
+          <article class="navy-card service-card">
+            <div>
+              <div class="service-head">
+                <div class="service-glyph">
+                  <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                </div>
+                <span class="service-tag">محصولات دیجیتال</span>
+              </div>
+              <h3>محصولات و خدمات دیجیتال</h3>
+              <p>لایسنس نرم‌افزارهای معتبر، اشتراک سرویس‌های سرگرمی و ابزارهای کاربردی دیجیتال متناسب با نیاز شما.</p>
+            </div>
+            <div class="service-foot">
+              <span class="placeholder-slot">[جایگاه قیمت]</span>
+              <button class="btn btn-buy btn-sm" data-add-item="digital-pass">سفارش محصول</button>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. INTERACTIVE 3D PRODUCT MARKETPLACE -->
+    <section class="story-scene" id="marketplace" data-scene="3">
+      <div class="container">
+        <div style="margin-bottom: 26px;">
+          <div class="scene-kicker">
+            <span class="dot"></span>
+            <span>فروشگاه تعاملی سه‌بعدی</span>
+            <span class="code">SCENE 04</span>
+          </div>
+          <h2 class="section-heading">محصول را سه‌بعدی بررسی کنید و <span class="title-accent">آسان سفارش دهید</span></h2>
+        </div>
+
+        <div class="market-grid">
+          <!-- Right (RTL first column): Filterable Catalog -->
+          <div>
+            <div class="filter-bar" id="market-filters">
+              <button class="filter-btn active" data-filter="all">همه محصولات</button>
+              <button class="filter-btn" data-filter="ai">هوش مصنوعی</button>
+              <button class="filter-btn" data-filter="vpn">VPN و V2Ray</button>
+              <button class="filter-btn" data-filter="apple">اپل و موبایل</button>
+              <button class="filter-btn" data-filter="digital">محصولات دیجیتال</button>
+            </div>
+
+            <div class="catalog-list" id="catalog-list"></div>
+          </div>
+
+          <!-- Left (RTL second column): Live 3D Hologram Inspection Window -->
+          <div class="stage-frame" id="hologram-stage" title="برای چرخش سه‌بعدی بکشید">
+            <div class="stage-bar">
+              <span class="drag-pill">&harr; برای چرخش سه‌بعدی به چپ یا راست بکشید</span>
+              <span class="mono-code" id="holo-code">HOLO // AI-01</span>
+            </div>
+
+            <!-- Transparent middle showcases the live WebGL artifact right here -->
+            <div style="min-height: 230px;" aria-hidden="true"></div>
+
+            <div class="stage-panel">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:14px;">
+                <div>
+                  <h3 id="holo-title" style="font-size:1.25rem; margin-bottom:4px;">پکیج اشتراک هوش مصنوعی</h3>
+                  <p id="holo-desc" style="font-size:0.86rem; color:var(--text-secondary); line-height:1.75;"></p>
+                </div>
+                <span class="placeholder-slot" id="holo-price" style="flex-shrink:0;">[قیمت محصول]</span>
+              </div>
+
+              <div class="spec-list" id="holo-specs"></div>
+
+              <div class="cta-group">
+                <button class="btn btn-buy" id="holo-add-btn" style="flex:1;">افزودن به سبد سفارش</button>
+                <button class="btn btn-signature" id="holo-checkout-btn">ثبت سریع سفارش</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. AI TECHNOLOGY EXPERIENCE -->
+    <section class="story-scene" id="ai-experience" data-scene="4">
+      <div class="container">
+        <div class="ai-split">
+          <div>
+            <div class="scene-kicker">
+              <span class="dot"></span>
+              <span>تجربه فناوری هوش مصنوعی</span>
+              <span class="code">SCENE 05</span>
+            </div>
+            <h2 class="section-heading">ابزار هوشمند مناسب <span class="title-accent">مسیر کاری خود را انتخاب کنید</span></h2>
+            <p class="lead-text">
+              حوزه فعالیت خود را مشخص کنید تا <span class="brand-inline">MR.ROBOT</span> ترکیب پیشنهادی سرویس‌های هوش مصنوعی متناسب با نیاز شما را نمایش دهد.
+            </p>
+
+            <div class="neural-console">
+              <div style="font-size:0.84rem; font-weight:600; color:var(--cyan-subtle);">حوزه اصلی استفاده شما چیست؟</div>
+              <div class="intent-tabs" id="ai-intent-tabs">
+                <button class="intent-btn active" data-intent="dev">برنامه‌نویسی و توسعه</button>
+                <button class="intent-btn" data-intent="creative">طراحی، تصویر و ویدیو</button>
+                <button class="intent-btn" data-intent="research">پژوهش و تولید محتوا</button>
+                <button class="intent-btn" data-intent="pro">پکیج جامع حرفه‌ای</button>
+              </div>
+
+              <div class="ai-result-box">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px;">
+                  <strong id="ai-plan-title" style="font-size:1.12rem;">پیشنهاد ویژه توسعه‌دهندگان</strong>
+                  <span class="placeholder-slot" id="ai-plan-price">[تعرفه پکیج پیشنهادی]</span>
+                </div>
+                <p id="ai-plan-desc" style="font-size:0.87rem; color:var(--text-secondary); line-height:1.82;"></p>
+                <div class="ai-features" id="ai-plan-features"></div>
+                <div class="cta-group">
+                  <button class="btn btn-buy" id="ai-add-plan">افزودن پکیج پیشنهادی به سفارش</button>
+                  <button class="btn btn-subtle" data-request="مشاوره خرید اشتراک تیمی هوش مصنوعی">درخواست پلن تیمی</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Left space frames MR.ROBOT in Neural Conductor stance -->
+          <div aria-hidden="true"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. APPLE & MOBILE SERVICES -->
+    <section class="story-scene" id="apple-mobile" data-scene="5">
+      <div class="container">
+        <div class="apple-split">
+          <!-- Right space frames MR.ROBOT examining floating diagnostic phone hologram -->
+          <div aria-hidden="true"></div>
+          <div>
+            <div class="scene-kicker">
+              <span class="dot"></span>
+              <span>خدمات تخصصی اپل و موبایل</span>
+              <span class="code">SCENE 06</span>
+            </div>
+            <h2 class="section-heading">رسیدگی دقیق به <span class="title-accent">اکوسیستم اپل و تلفن همراه شما</span></h2>
+            <p class="lead-text">
+              از ساخت و مدیریت ایمن اپل آیدی و ارتقای فضای آیکلود تا عیب‌یابی تخصصی و خدمات نرم‌افزاری و سخت‌افزاری موبایل با استاندارد حرفه‌ای.
+            </p>
+
+            <div class="apple-grid">
+              <div class="navy-card apple-card">
+                <div>
+                  <span class="placeholder-slot">[زمان انجام سرویس]</span>
+                  <h3>ساخت و تحویل اپل آیدی اختصاصی</h3>
+                  <p>ایجاد اپل آیدی اختصاصی با تنظیمات امنیتی استاندارد و انتقال کامل مالکیت به کاربر.</p>
+                </div>
+                <div class="service-foot">
+                  <span class="placeholder-slot">[جایگاه قیمت]</span>
+                  <button class="btn btn-buy btn-sm" data-add-item="apple-id">ثبت سفارش</button>
+                </div>
+              </div>
+
+              <div class="navy-card apple-card">
+                <div>
+                  <span class="placeholder-slot">[زمان انجام سرویس]</span>
+                  <h3>ارتقای فضای iCloud+ و سرویس‌های اپل</h3>
+                  <p>افزایش فضای ذخیره‌سازی ابری برای بکاپ امن تصاویر، فایل‌ها و هماهنگی میان دستگاه‌های اپل.</p>
+                </div>
+                <div class="service-foot">
+                  <span class="placeholder-slot">[جایگاه قیمت]</span>
+                  <button class="btn btn-buy btn-sm" data-add-item="icloud-upgrade">ثبت سفارش</button>
+                </div>
+              </div>
+
+              <div class="navy-card apple-card">
+                <div>
+                  <span class="placeholder-slot">[بررسی تخصصی]</span>
+                  <h3>تعمیرات سخت‌افزاری موبایل</h3>
+                  <p>تعویض نمایشگر، باتری و قطعات کلیدی با عیب‌یابی اولیه شفاف و اعلام هزینه پیش از انجام کار.</p>
+                </div>
+                <div class="service-foot">
+                  <span class="placeholder-slot">[استعلام هزینه]</span>
+                  <button class="btn btn-buy btn-sm" data-request="درخواست تعمیر سخت‌افزاری موبایل">درخواست تعمیر</button>
+                </div>
+              </div>
+
+              <div class="navy-card apple-card">
+                <div>
+                  <span class="placeholder-slot">[حضوری / غیرحضوری]</span>
+                  <h3>خدمات نرم‌افزاری و بازیابی سیستم</h3>
+                  <p>رفع خطاهای سیستم‌عامل، انتقال امن اطلاعات و بهینه‌سازی تنظیمات گوشی بدون آسیب به داده‌ها.</p>
+                </div>
+                <div class="service-foot">
+                  <span class="placeholder-slot">[استعلام هزینه]</span>
+                  <button class="btn btn-buy btn-sm" data-request="درخواست خدمات نرم‌افزاری موبایل">ثبت درخواست</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. TRUST, SUPPORT & CUSTOMER CONFIDENCE -->
+    <section class="story-scene" id="trust" data-scene="6">
+      <div class="container">
+        <div class="centered-intro">
+          <div class="scene-kicker">
+            <span class="dot"></span>
+            <span>اعتماد، پشتیبانی و اطمینان مشتری</span>
+            <span class="code">SCENE 07</span>
+          </div>
+          <h2 class="section-heading">خرید مطمئن با <span class="title-accent">شفافیت و همراهی واقعی</span></h2>
+          <p class="lead-text">
+            این بخش آماده درج آمارهای رسمی، قوانین ضمانت و دیدگاه‌های واقعی مشتریان شماست — بدون اعداد نمایشی یا ادعاهای ساختگی.
+          </p>
+        </div>
+
+        <div class="trust-grid">
+          <div class="navy-card trust-card">
+            <span class="placeholder-slot">[آمار رسمی سفارش‌ها]</span>
+            <h3>سابقه و اعتبار برند</h3>
+            <p>[توضیح کوتاه درباره سابقه فعالیت، تعداد مشتریان واقعی یا مجوزهای رسمی مجموعه MR.ROBOT.]</p>
+          </div>
+          <div class="navy-card trust-card">
+            <span class="placeholder-slot">[سیاست ضمانت خدمات]</span>
+            <h3>شرایط ضمانت و پشتیبانی</h3>
+            <p>[درج شرایط واقعی گارانتی سرویس‌های دیجیتال، اشتراک‌ها و تعمیرات سخت‌افزاری.]</p>
+          </div>
+          <div class="navy-card trust-card">
+            <span class="placeholder-slot">[کانال‌های ارتباطی]</span>
+            <h3>پاسخ‌گویی مستقیم کارشناس</h3>
+            <p>[درج ساعات پاسخ‌گویی و راه‌های ارتباطی رسمی: تلگرام، واتساپ یا تیکت پشتیبانی.]</p>
+          </div>
+          <div class="navy-card trust-card">
+            <span class="placeholder-slot">[نحوه تحویل سفارش]</span>
+            <h3>فرآیند شفاف تحویل</h3>
+            <p>[توضیح دقیق مراحل ثبت سفارش، تایید پرداخت و نحوه تحویل اطلاعات سرویس به مشتری.]</p>
+          </div>
+        </div>
+
+        <div class="feedback-grid">
+          <div class="navy-card feedback-card">
+            <span class="placeholder-slot">[جایگاه دیدگاه واقعی مشتری ۱]</span>
+            <p>«متن تجربه واقعی مشتری پس از استفاده از خدمات هوش مصنوعی یا سرویس‌های دیجیتال MR.ROBOT در این بخش نمایش داده می‌شود.»</p>
+            <div class="feedback-meta"><span>[نام مشتری]</span><span>[نوع سرویس خریداری‌شده]</span></div>
+          </div>
+          <div class="navy-card feedback-card">
+            <span class="placeholder-slot">[جایگاه دیدگاه واقعی مشتری ۲]</span>
+            <p>«متن تجربه واقعی مشتری درباره کیفیت اتصال VPN / V2Ray و همراهی تیم پشتیبانی در این بخش درج می‌شود.»</p>
+            <div class="feedback-meta"><span>[نام مشتری]</span><span>[نوع سرویس خریداری‌شده]</span></div>
+          </div>
+          <div class="navy-card feedback-card">
+            <span class="placeholder-slot">[جایگاه دیدگاه واقعی مشتری ۳]</span>
+            <p>«متن تجربه واقعی مشتری درباره خدمات اپل آیدی، آیکلود یا تعمیرات موبایل در این بخش قرار می‌گیرد.»</p>
+            <div class="feedback-meta"><span>[نام مشتری]</span><span>[نوع سرویس خریداری‌شده]</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. FINAL CINEMATIC BRAND SECTION -->
+    <section class="story-scene finale-scene" id="finale" data-scene="7">
+      <div class="container">
+        <div class="finale-card">
+          <div class="scene-kicker" style="margin-bottom:14px;">
+            <span class="dot"></span>
+            <span>آماده ارتقای تجربه دیجیتال خود هستید؟</span>
+            <span class="code">FINALE</span>
+          </div>
+          <div class="finale-wordmark">MR.<span>ROBOT</span></div>
+          <p class="lead-text" style="margin-inline:auto; text-align:center;">
+            از اشتراک‌های هوش مصنوعی و دسترسی امن تا خدمات تخصصی اپل و موبایل؛ همه چیز با نظم، زیبایی و اطمینان در اختیار شماست.
+          </p>
+          <div class="cta-group" style="justify-content:center;">
+            <a href="#marketplace" class="btn btn-signature">شروع خرید از فروشگاه سه‌بعدی</a>
+            <button class="btn btn-buy" id="finale-open-bag">مشاهده سبد سفارش</button>
+            <button class="btn btn-subtle" data-request="گفتگو با کارشناس MR.ROBOT">ارتباط با پشتیبانی</button>
+          </div>
+        </div>
+
+        <footer class="footer-strip">
+          <div>&copy; ۱۴۰۵ <span class="brand-inline">MR.ROBOT</span> — پیش‌نمایش مفهومی و بصری وب‌سایت.</div>
+          <div class="footer-nav">
+            <a href="#services">خدمات</a>
+            <a href="#marketplace">فروشگاه سه‌بعدی</a>
+            <a href="#ai-experience">هوش مصنوعی</a>
+            <a href="#apple-mobile">اپل و موبایل</a>
+            <a href="#trust">اعتماد و پشتیبانی</a>
+          </div>
+        </footer>
+      </div>
+    </section>
+  </main>
+
+  <!-- RTL Slide-Over Order Bag -->
+  <div class="backdrop" id="bag-backdrop"></div>
+  <aside class="order-drawer" id="order-drawer" aria-label="سبد سفارش">
+    <div class="drawer-head">
+      <div>
+        <h3 style="font-size:1.12rem;">سبد سفارش شما</h3>
+        <small style="color:var(--text-muted);">پیش‌نمایش فرآیند خرید (بدون اتصال به درگاه)</small>
+      </div>
+      <button class="icon-close" id="close-bag-btn" aria-label="بستن">&times;</button>
+    </div>
+
+    <div class="drawer-list" id="bag-list"></div>
+
+    <div class="drawer-foot">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <span style="font-weight:700;">مبلغ نهایی سفارش</span>
+        <span class="placeholder-slot" id="bag-total-note">[محاسبه پس از اتصال تعرفه]</span>
+      </div>
+      <input type="text" class="field-input" id="order-contact" placeholder="شماره تماس، ایمیل یا آیدی تلگرام جهت تحویل" />
+      <button class="btn btn-signature" id="submit-order-btn" style="width:100%;">ثبت پیش‌سفارش نمونه &larr;</button>
+    </div>
+  </aside>
+
+  <!-- Service Request Modal -->
+  <div class="modal-overlay" id="request-modal">
+    <div class="modal-box">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div>
+          <span style="font-size:0.76rem; color:var(--cyan-subtle); font-weight:600;">پشتیبانی تخصصی MR.ROBOT</span>
+          <h3 id="request-modal-title" style="font-size:1.22rem; margin-top:4px;">ثبت درخواست</h3>
+        </div>
+        <button class="icon-close" id="close-request-modal">&times;</button>
+      </div>
+      <p style="font-size:0.86rem; color:var(--text-secondary); margin-bottom:18px; line-height:1.8;">
+        مشخصات دستگاه یا سرویس مورد نیاز خود را وارد کنید تا کارشناس ما شرایط و برآورد دقیق را به شما اعلام کند.
+      </p>
+      <form id="request-form">
+        <input type="text" class="field-input" placeholder="نام و نام خانوادگی" required />
+        <input type="text" class="field-input" placeholder="شماره تماس یا آیدی تلگرام" required />
+        <input type="text" class="field-input" placeholder="توضیح سرویس یا مدل دستگاه (مثلاً آیفون، پلن AI و...)" required />
+        <button type="submit" class="btn btn-buy" style="width:100%; margin-top:4px;">ارسال درخواست مشاوره</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Official Reference Mascot Loader Modal (.glb) -->
+  <div class="modal-overlay" id="ref-modal">
+    <div class="modal-box">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div>
+          <span style="font-size:0.76rem; color:var(--cyan-subtle); font-weight:600;">اتصال کاراکتر مرجع برند</span>
+          <h3 style="font-size:1.18rem; margin-top:4px;">بارگذاری مدل رسمی MR.ROBOT (.glb)</h3>
+        </div>
+        <button class="icon-close" id="close-ref-modal">&times;</button>
+      </div>
+      <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px; line-height:1.82;">
+        هر زمان فایل سه‌بعدی مرجع مسکات <span class="brand-inline">MR.ROBOT</span> (با فرمت <span dir="ltr">.glb / .gltf</span>) را آماده کردید، می‌توانید آن را همین‌جا انتخاب کنید تا بلافاصله در همین صحنه، نورپردازی استودیویی و انیمیشن‌های اسکرول جایگزین شود.
+      </p>
+      <label class="dropzone" for="glb-file-input" style="display:block;">
+        <strong style="display:block; margin-bottom:6px;">انتخاب فایل مدل سه‌بعدی مرجع (.glb)</strong>
+        <span style="font-size:0.8rem; color:var(--text-muted);">کاراکتر به‌صورت خودکار مقیاس‌بندی، وسط‌چین و همگام با دوربین می‌شود</span>
+        <input type="file" id="glb-file-input" accept=".glb,.gltf" hidden />
+      </label>
+      <div class="cta-group" style="justify-content:space-between;">
+        <button class="btn btn-subtle btn-sm" id="reset-default-char">بازگشت به کاراکتر پیش‌فرض استودیویی</button>
+        <button class="btn btn-buy btn-sm" id="done-ref-modal">بستن</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">پیام سیستم</div>
+
+  <!-- =========================================================================
+       CINEMA-GRADE THREE.JS + STUDIO HDRI + BLOOM + SCULPTED MR.ROBOT ENGINE
+  ========================================================================= -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    /* =========================================================================
+       0. OPTIONAL OFFICIAL REFERENCE MODEL URL HOOK
+          When you have your official MR.ROBOT .glb file hosted, set URL here:
+    ========================================================================= */
+    window.MR_ROBOT_ASSET_CONFIG = {
+      modelUrl: null // Example: '/models/mr-robot-official.glb'
+    };
+
+    /* =========================================================================
+       1. PERSIAN COMMERCE CATALOG (ALL PRICES/METRICS ARE CLEAR PLACEHOLDERS)
+    ========================================================================= */
+    const CATALOG = [
+      {
+        id: 'ai-suite',
+        category: 'ai',
+        artifact: 'aiCore',
+        code: 'HOLO // AI-SUITE',
+        title: 'پکیج اشتراک هوش مصنوعی حرفه‌ای',
+        short: 'فعال‌سازی اختصاصی ابزارهای هوش مصنوعی برای کار و تولید محتوا',
+        desc: 'دسترسی اختصاصی به اشتراک‌های معتبر هوش مصنوعی همراه با راهنمای گام‌به‌گام ورود ایمن و تنظیمات استاندارد.',
+        priceLabel: '[تعرفه اشتراک AI]',
+        specs: ['فعال‌سازی اختصاصی', '[مدت اشتراک]', '[شرایط ضمانت]', 'پشتیبانی نصب']
+      },
+      {
+        id: 'v2ray-core',
+        category: 'vpn',
+        artifact: 'vpnShield',
+        code: 'HOLO // V2RAY-NET',
+        title: 'سرویس اختصاصی VPN و V2Ray',
+        short: 'اتصال امن و پایدار سازگار با موبایل و دسکتاپ',
+        desc: 'سرویس رمزنگاری‌شده با راه‌اندازی سریع از طریق QR کد برای سیستم‌عامل‌های iOS، اندروید، ویندوز و مک.',
+        priceLabel: '[تعرفه پلن V2Ray]',
+        specs: ['اتصال رمزنگاری‌شده', '[حجم و مدت پلن]', '[تعداد کاربر]', 'راه‌اندازی آسان']
+      },
+      {
+        id: 'apple-kit',
+        category: 'apple',
+        artifact: 'applePhone',
+        code: 'HOLO // APPLE-LAB',
+        title: 'پکیج اپل آیدی و خدمات iCloud+',
+        short: 'اپل آیدی اختصاصی و ارتقای ایمن فضای ابری اپل',
+        desc: 'راه‌اندازی کامل و ایمن اکوسیستم اپل شامل اپل آیدی اختصاصی با مالکیت کامل و راهنمای فعال‌سازی آیکلود.',
+        priceLabel: '[تعرفه خدمات اپل]',
+        specs: ['مالکیت کامل کاربر', 'تنظیمات امنیتی', '[ظرفیت فضای ابری]', 'پشتیبانی تخصصی']
+      },
+      {
+        id: 'digital-pass',
+        category: 'digital',
+        artifact: 'obsidianCard',
+        code: 'HOLO // DIGITAL-KEY',
+        title: 'بسته محصولات و لایسنس دیجیتال',
+        short: 'اشتراک سرویس‌های کاربردی و لایسنس نرم‌افزارهای معتبر',
+        desc: 'تهیه قانونی لایسنس نرم‌افزارها و اشتراک‌های پرکاربرد دیجیتال متناسب با نیاز شخصی یا کاری شما.',
+        priceLabel: '[تعرفه محصول دیجیتال]',
+        specs: ['تحویل کد معتبر', '[نوع لایسنس]', '[شرایط تمدید]', 'راهنمای فعال‌سازی']
+      },
+      {
+        id: 'dev-vault',
+        category: 'ai',
+        artifact: 'neuralVault',
+        code: 'HOLO // DEV-AI',
+        title: 'اشتراک ابزارهای برنامه‌نویسی هوشمند',
+        short: 'ویژه برنامه‌نویسان و تیم‌های مهندسی نرم‌افزار',
+        desc: 'فراهم‌سازی اشتراک محیط‌های کدنویسی هوشمند و مدل‌های استدلالی برای افزایش سرعت توسعه پروژه.',
+        priceLabel: '[تعرفه پلن توسعه‌دهنده]',
+        specs: ['ویژه برنامه‌نویسان', '[محدودیت و پلن]', '[زمان تحویل]', 'مشاوره فنی']
+      }
+    ];
+
+    const EXTRA_ITEMS = {
+      'apple-id': { id: 'apple-id', title: 'ساخت اپل آیدی اختصاصی', priceLabel: '[تعرفه اپل آیدی]' },
+      'icloud-upgrade': { id: 'icloud-upgrade', title: 'ارتقای فضای iCloud+', priceLabel: '[تعرفه آیکلود]' }
+    };
+
+    const AI_WORKFLOWS = {
+      dev: {
+        id: 'ai-rec-dev',
+        title: 'پیشنهاد ویژه برنامه‌نویسی و توسعه',
+        priceLabel: '[تعرفه پکیج توسعه‌دهنده]',
+        desc: 'مناسب توسعه‌دهندگان نرم‌افزار برای تکمیل کد، دیباگ سریع، تحلیل معماری پروژه و مستندسازی دقیق.',
+        features: ['ابزار کدنویسی هوشمند (IDE)', 'مدل استدلال و تحلیل کد', 'راهنمای اتصال پایدار', '[شرایط اشتراک و تمدید]']
+      },
+      creative: {
+        id: 'ai-rec-creative',
+        title: 'پیشنهاد ویژه طراحی، تصویر و ویدیو',
+        priceLabel: '[تعرفه پکیج طراحی]',
+        desc: 'مناسب طراحان گرافیک، موشن‌دیزاینرها و تولیدکنندگان محتوای بصری برای خلق ایده‌ها و خروجی‌های حرفه‌ای.',
+        features: ['سرویس تولید تصویر پیشرفته', 'ابزار ایده‌پردازی و ویدیو', 'راهنمای پرامپت‌نویسی استاندارد', '[شرایط اشتراک و تمدید]']
+      },
+      research: {
+        id: 'ai-rec-research',
+        title: 'پیشنهاد ویژه پژوهش و بهره‌وری',
+        priceLabel: '[تعرفه پکیج پژوهشی]',
+        desc: 'مناسب پژوهشگران، دانشجویان و مدیران برای تحلیل اسناد، ترجمه دقیق تخصصی و جمع‌بندی منابع علمی.',
+        features: ['جست‌وجوی هوشمند مبتنی بر منبع', 'تحلیل فایل‌های PDF و مقاله', 'حساب کاربری اختصاصی', '[شرایط اشتراک و تمدید]']
+      },
+      pro: {
+        id: 'ai-rec-pro',
+        title: 'پکیج جامع چندمنظوره MR.ROBOT',
+        priceLabel: '[تعرفه پکیج جامع]',
+        desc: 'ترکیبی کامل برای کاربرانی که به صورت هم‌زمان به ابزارهای هوش مصنوعی، اتصال امن و پشتیبانی اختصاصی نیاز دارند.',
+        features: ['دسترسی به چند ابزار کلیدی AI', 'اتصال امن و پایدار همراه', 'پشتیبانی اولویت‌دار فنی', '[جزئیات کامل بسته]']
+      }
+    };
+
+    /* =========================================================================
+       2. STUDIO PBR PROCEDURAL TEXTURES (FABRIC WEAVE, FOLDS NORMAL MAP, SLATE)
+    ========================================================================= */
+    function createFabricNormalAndRoughness() {
+      const size = 512;
+      const heightData = new Float32Array(size * size);
+
+      // Combine realistic cotton-fleece micro-weave + organic hoodie drapery fold waves
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const u = x / size;
+          const v = y / size;
+
+          // Fine woven fleece grain
+          const weaveX = Math.sin(x * 1.35) * 0.5 + 0.5;
+          const weaveY = Math.cos(y * 1.35 + (x % 2) * 1.2) * 0.5 + 0.5;
+          const micro = (weaveX * weaveY) * 0.16;
+
+          // Organic vertical & subtle diagonal clothing fold ridges
+          const fold1 = Math.sin(u * Math.PI * 10 + Math.sin(v * Math.PI * 4) * 0.85) * 0.42;
+          const fold2 = Math.sin(u * Math.PI * 18 - v * Math.PI * 6) * 0.22;
+          const fold3 = Math.cos((u * 0.7 + v * 0.3) * Math.PI * 8) * 0.2;
+
+          heightData[y * size + x] = 0.5 + micro + (fold1 + fold2 + fold3) * 0.38;
+        }
+      }
+
+      // Compute tangent-space Normal Map + Roughness Map
+      const nCanvas = document.createElement('canvas');
+      nCanvas.width = size;
+      nCanvas.height = size;
+      const nCtx = nCanvas.getContext('2d');
+      const nImg = nCtx.createImageData(size, size);
+
+      const rCanvas = document.createElement('canvas');
+      rCanvas.width = size;
+      rCanvas.height = size;
+      const rCtx = rCanvas.getContext('2d');
+      const rImg = rCtx.createImageData(size, size);
+
+      const strength = 3.2;
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const xl = (x - 1 + size) % size;
+          const xr = (x + 1) % size;
+          const yu = (y - 1 + size) % size;
+          const yd = (y + 1) % size;
+
+          const dx = (heightData[y * size + xr] - heightData[y * size + xl]) * strength;
+          const dy = (heightData[yd * size + x] - heightData[yu * size + x]) * strength;
+          const dz = 1.0;
+          const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+          const idx = (y * size + x) * 4;
+          nImg.data[idx]     = Math.floor((-dx / len * 0.5 + 0.5) * 255);
+          nImg.data[idx + 1] = Math.floor((-dy / len * 0.5 + 0.5) * 255);
+          nImg.data[idx + 2] = Math.floor((dz / len * 0.5 + 0.5) * 255);
+          nImg.data[idx + 3] = 255;
+
+          // Roughness varies subtly across cloth ridges vs creases (0.72 - 0.94)
+          const h = THREE.MathUtils.clamp(heightData[y * size + x], 0, 1);
+          const roughVal = Math.floor((0.93 - h * 0.18) * 255);
+          rImg.data[idx] = rImg.data[idx + 1] = rImg.data[idx + 2] = roughVal;
+          rImg.data[idx + 3] = 255;
+        }
+      }
+      nCtx.putImageData(nImg, 0, 0);
+      rCtx.putImageData(rImg, 0, 0);
+
+      const normalMap = new THREE.CanvasTexture(nCanvas);
+      normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
+      normalMap.repeat.set(2.4, 2.4);
+
+      const roughnessMap = new THREE.CanvasTexture(rCanvas);
+      roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
+      roughnessMap.repeat.set(2.4, 2.4);
+
+      return { normalMap, roughnessMap };
+    }
+
+    function createChestPrintTexture() {
+      const c = document.createElement('canvas');
+      c.width = 1024;
+      c.height = 512;
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0, 0, 1024, 512);
+
+      // Refined architectural hairline framing
+      ctx.strokeStyle = 'rgba(239, 29, 66, 0.72)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(210, 185);
+      ctx.lineTo(814, 185);
+      ctx.moveTo(290, 342);
+      ctx.lineTo(734, 342);
+      ctx.stroke();
+
+      // Silkscreened MR.ROBOT emblem
+      ctx.font = '700 96px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#edf3ff';
+      ctx.fillText('MR.', 352, 265);
+      ctx.fillStyle = '#ef1d42';
+      ctx.fillText('ROBOT', 610, 265);
+
+      ctx.font = '500 22px "JetBrains Mono", monospace';
+      ctx.fillStyle = 'rgba(147, 197, 253, 0.78)';
+      ctx.fillText('DIGITAL // AI // SYSTEMS', 512, 384);
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.anisotropy = 8;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createStudioFloorTextures() {
+      const size = 1024;
+      const c = document.createElement('canvas');
+      c.width = size;
+      c.height = size;
+      const ctx = c.getContext('2d');
+
+      // Deep dark architectural slate base
+      ctx.fillStyle = '#040915';
+      ctx.fillRect(0, 0, size, size);
+
+      // Minimalist architectural radial rings (no loud neon grid)
+      ctx.strokeStyle = 'rgba(110, 165, 255, 0.14)';
+      ctx.lineWidth = 2;
+      [120, 220, 340, 460].forEach((r) => {
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, r, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+
+      // Subtle architectural crosshairs
+      ctx.strokeStyle = 'rgba(110, 165, 255, 0.08)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(size / 2, 40);
+      ctx.lineTo(size / 2, size - 40);
+      ctx.moveTo(40, size / 2);
+      ctx.lineTo(size - 40, size / 2);
+      ctx.stroke();
+
+      // Smooth vignette edge blend into dark floor
+      const fade = ctx.createRadialGradient(size / 2, size / 2, 110, size / 2, size / 2, size / 2);
+      fade.addColorStop(0, 'rgba(4,9,21,0)');
+      fade.addColorStop(0.76, 'rgba(3,7,18,0.55)');
+      fade.addColorStop(1, 'rgba(2,5,13,1)');
+      ctx.fillStyle = fade;
+      ctx.fillRect(0, 0, size, size);
+
+      const map = new THREE.CanvasTexture(c);
+      map.colorSpace = THREE.SRGBColorSpace;
+      map.anisotropy = 8;
+      return map;
+    }
+
+    function createPhoneOledTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 1024;
+      const ctx = c.getContext('2d');
+      const g = ctx.createLinearGradient(0, 0, 512, 1024);
+      g.addColorStop(0, '#07142e');
+      g.addColorStop(0.5, '#0e2452');
+      g.addColorStop(1, '#040a18');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 512, 1024);
+
+      // Dynamic Island
+      ctx.fillStyle = '#010308';
+      ctx.beginPath();
+      ctx.roundRect(176, 36, 160, 42, 21);
+      ctx.fill();
+
+      // Minimalist diagnostic ring
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.arc(256, 340, 106, -Math.PI / 2, Math.PI * 1.15);
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(239, 29, 66, 0.85)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(256, 340, 82, 0.2, Math.PI * 1.4);
+      ctx.stroke();
+
+      ctx.fillStyle = '#f4f7fd';
+      ctx.font = '700 42px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('MR.ROBOT', 256, 540);
+
+      ctx.fillStyle = '#93c5fd';
+      ctx.font = '500 24px "JetBrains Mono", monospace';
+      ctx.fillText('APPLE & MOBILE LAB', 256, 594);
+
+      ctx.fillStyle = 'rgba(37, 99, 235, 0.85)';
+      ctx.beginPath();
+      ctx.roundRect(96, 760, 320, 84, 22);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '700 28px "Space Grotesk", sans-serif';
+      ctx.fillText('DIAGNOSTICS READY', 256, 812);
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 8;
+      return tex;
+    }
+
+    function createStudioEnvironmentMap(renderer) {
+      // Custom dark-studio softbox HDRI so metallic headphones, glass & fabric sheen look cinema-lit
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      const envScene = new THREE.Scene();
+      envScene.background = new THREE.Color(0x030712);
+
+      const addSoftbox = (w, h, color, intensity, pos, look) => {
+        const m = new THREE.Mesh(
+          new THREE.PlaneGeometry(w, h),
+          new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(intensity), side: THREE.DoubleSide })
+        );
+        m.position.set(...pos);
+        m.lookAt(...look);
+        envScene.add(m);
+      };
+
+      // Overhead cool-steel key softbox
+      addSoftbox(10, 4, 0x9ec5ff, 2.8, [0, 8, 3], [0, 0, 0]);
+      // Left-back crisp cyan rim strip
+      addSoftbox(3.5, 11, 0x38bdf8, 4.2, [-8, 3, -4], [0, 1, 0]);
+      // Right-back subtle violet-indigo fill strip
+      addSoftbox(4, 10, 0x6366f1, 2.4, [8, 2.5, -3], [0, 1, 0]);
+      // Subtle crimson studio accent strip low-right
+      addSoftbox(2.2, 6, 0xef1d42, 2.2, [6, 0.5, 4], [0, 1, 0]);
+
+      const rt = pmrem.fromScene(envScene, 0.04);
+      pmrem.dispose();
+      return rt.texture;
+    }
+
+    /* =========================================================================
+       3. PREMIUM SCULPTED MR.ROBOT CHARACTER (PLUS OFFICIAL .GLB SWAP SUPPORT)
+    ========================================================================= */
+    class StudioMrRobotRig {
+      constructor() {
+        this.root = new THREE.Group();
+        this.proceduralRoot = new THREE.Group();
+        this.customModelSlot = new THREE.Group();
+        this.root.add(this.proceduralRoot);
+        this.root.add(this.customModelSlot);
+
+        this.bodyRig = new THREE.Group();
+        this.headRig = new THREE.Group();
+        this.proceduralRoot.add(this.bodyRig);
+
+        this.usingCustomGlb = false;
+        this.customMixer = null;
+
+        this.fabricTex = createFabricNormalAndRoughness();
+        this.buildMaterials();
+        this.buildTailoredTorso();
+        this.buildSculptedHoodAndHead();
+        this.buildStudioHeadphones();
+        this.buildArticulatedArms();
+        this.buildInteractiveHoloOrb();
+
+        this.blinkTimer = 3.1;
+        this.isBlinking = false;
+        this.blinkT = 0;
+        this.pose = {
+          lShX: 0.12, lShZ: 0.14, lElX: -0.42,
+          rShX: -0.22, rShZ: -0.18, rElX: -0.62,
+          orbScale: 0.001, orbPos: [0.85, 0.52, 0.72],
+          eyeGlow: 3.4, lookBiasX: 0
+        };
+      }
+
+      buildMaterials() {
+        // Luxury Heavyweight Black Cotton Hoodie with Real Sheen + Fold Normal Map
+        this.hoodieFabric = new THREE.MeshPhysicalMaterial({
+          color: 0x0b0f19,
+          roughness: 0.88,
+          roughnessMap: this.fabricTex.roughnessMap,
+          normalMap: this.fabricTex.normalMap,
+          normalScale: new THREE.Vector2(1.25, 1.25),
+          metalness: 0.04,
+          sheen: 0.85,
+          sheenRoughness: 0.56,
+          sheenColor: new THREE.Color(0x3b67b5)
+        });
+
+        this.hoodieInnerFleece = new THREE.MeshPhysicalMaterial({
+          color: 0x05070e,
+          roughness: 0.96,
+          normalMap: this.fabricTex.normalMap,
+          normalScale: new THREE.Vector2(0.85, 0.85),
+          sheen: 0.35,
+          sheenColor: new THREE.Color(0x4a1220)
+        });
+
+        this.shadowFaceMat = new THREE.MeshStandardMaterial({
+          color: 0x020307,
+          roughness: 0.95,
+          metalness: 0.05
+        });
+
+        this.anodizedMetal = new THREE.MeshPhysicalMaterial({
+          color: 0x1e293d,
+          roughness: 0.24,
+          metalness: 0.92,
+          clearcoat: 0.45,
+          clearcoatRoughness: 0.22
+        });
+
+        this.leatherCushion = new THREE.MeshPhysicalMaterial({
+          color: 0x0b0e14,
+          roughness: 0.52,
+          metalness: 0.08,
+          sheen: 0.35,
+          sheenColor: new THREE.Color(0x283856)
+        });
+
+        this.crimsonNeon = new THREE.MeshStandardMaterial({
+          color: 0xff2a4e,
+          emissive: 0xff163d,
+          emissiveIntensity: 3.6,
+          roughness: 0.12,
+          toneMapped: false
+        });
+
+        this.steelCyanAccent = new THREE.MeshStandardMaterial({
+          color: 0x38bdf8,
+          emissive: 0x0ea5e9,
+          emissiveIntensity: 2.2,
+          roughness: 0.2,
+          toneMapped: false
+        });
+      }
+
+      buildTailoredTorso() {
+        // Anatomically contoured hoodie torso with sculpted drapery folds baked into vertices
+        const profile = [
+          new THREE.Vector2(0.01, -1.32),
+          new THREE.Vector2(0.55, -1.28),
+          new THREE.Vector2(0.57, -0.82),
+          new THREE.Vector2(0.62, -0.22),
+          new THREE.Vector2(0.74, 0.36),
+          new THREE.Vector2(0.86, 0.72),
+          new THREE.Vector2(0.70, 0.91),
+          new THREE.Vector2(0.38, 0.98),
+          new THREE.Vector2(0.24, 0.94)
+        ];
+        const torsoGeo = new THREE.LatheGeometry(profile, 64);
+        const p = torsoGeo.attributes.position;
+        for (let i = 0; i < p.count; i++) {
+          let x = p.getX(i);
+          let y = p.getY(i);
+          let z = p.getZ(i);
+          const angle = Math.atan2(x, z);
+
+          // Realistic anatomical chest depth & back taper
+          z *= 0.72;
+          x *= 1.08;
+          if (z > 0 && y > 0.05 && y < 0.75) {
+            // Subtle tailored chest volume
+            z += 0.065 * Math.cos(angle * 2) * Math.sin(((y - 0.05) / 0.7) * Math.PI);
+          }
+
+          // Organic vertical cloth drapery creases across lower torso & ribs
+          const foldAmp = THREE.MathUtils.clamp((0.6 - y) * 0.025, 0.005, 0.032);
+          const drapery = Math.sin(angle * 9 + y * 2.2) * foldAmp + Math.cos(angle * 15 - y * 3.1) * foldAmp * 0.45;
+          x += Math.sin(angle) * drapery;
+          z += Math.cos(angle) * drapery;
+
+          p.setXYZ(i, x, y, z);
+        }
+        torsoGeo.computeVertexNormals();
+
+        const torsoMesh = new THREE.Mesh(torsoGeo, this.hoodieFabric);
+        this.bodyRig.add(torsoMesh);
+
+        // Layered Draped Collar / Cowl Folds (3 overlapping sculpted fabric rings for rich thickness)
+        const collarLayers = [
+          { r: 0.44, tube: 0.115, y: 0.94, z: 0.05, rx: 1.72, sx: 1.12, sy: 0.96 },
+          { r: 0.52, tube: 0.095, y: 0.84, z: 0.07, rx: 1.84, sx: 1.16, sy: 0.92 },
+          { r: 0.58, tube: 0.072, y: 0.75, z: 0.08, rx: 1.92, sx: 1.12, sy: 0.88 }
+        ];
+        collarLayers.forEach((c, idx) => {
+          const geo = new THREE.TorusGeometry(c.r, c.tube, 24, 56);
+          const pos = geo.attributes.position;
+          for (let i = 0; i < pos.count; i++) {
+            const vx = pos.getX(i);
+            const vy = pos.getY(i);
+            const vz = pos.getZ(i);
+            const wave = Math.sin(Math.atan2(vy, vx) * 6 + idx * 1.4) * 0.018;
+            pos.setXYZ(i, vx, vy + wave, vz + wave * 0.7);
+          }
+          geo.computeVertexNormals();
+          const mesh = new THREE.Mesh(geo, idx === 0 ? this.hoodieInnerFleece : this.hoodieFabric);
+          mesh.rotation.x = c.rx;
+          mesh.position.set(0, c.y, c.z);
+          mesh.scale.set(c.sx, c.sy, 1.0);
+          this.bodyRig.add(mesh);
+        });
+
+        // Silkscreened MR.ROBOT Chest Branding conformed cleanly to chest curvature
+        const printGeo = new THREE.CylinderGeometry(0.66, 0.61, 0.96, 36, 1, true, -0.52, 1.04);
+        printGeo.scale(1.06, 1.0, 0.77);
+        const printMat = new THREE.MeshStandardMaterial({
+          map: createChestPrintTexture(),
+          transparent: true,
+          roughness: 0.48,
+          metalness: 0.12,
+          depthWrite: false,
+          polygonOffset: true,
+          polygonOffsetFactor: -1
+        });
+        const chestPrint = new THREE.Mesh(printGeo, printMat);
+        chestPrint.position.set(0, 0.31, 0.075);
+        this.bodyRig.add(chestPrint);
+
+        // Realistic Braided Hoodie Drawstrings + Brushed Anodized Crimson Aglets
+        [-0.145, 0.145].forEach((side, i) => {
+          const curve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(side * 0.92, 0.90, 0.42),
+            new THREE.Vector3(side * 1.15, 0.62, 0.56),
+            new THREE.Vector3(side * 1.08, 0.28 - i * 0.05, 0.55)
+          ]);
+          const cord = new THREE.Mesh(
+            new THREE.TubeGeometry(curve, 24, 0.013, 10, false),
+            this.hoodieInnerFleece
+          );
+          this.bodyRig.add(cord);
+
+          const aglet = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.017, 0.017, 0.068, 12),
+            this.anodizedMetal
+          );
+          aglet.position.set(side * 1.08, 0.25 - i * 0.05, 0.55);
+          this.bodyRig.add(aglet);
+
+          const agletTip = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.018, 0.018, 0.016, 12),
+            this.crimsonNeon
+          );
+          agletTip.position.set(side * 1.08, 0.22 - i * 0.05, 0.55);
+          this.bodyRig.add(agletTip);
+        });
+      }
+
+      buildSculptedHoodAndHead() {
+        this.headRig.position.set(0, 1.40, 0.02);
+        this.bodyRig.add(this.headRig);
+
+        // High-Resolution Sculpted Hood Shell with Realistic Pointed Drape & Asymmetric Fabric Folds
+        const hoodGeo = new THREE.SphereGeometry(0.58, 64, 48);
+        const pos = hoodGeo.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          let x = pos.getX(i);
+          let y = pos.getY(i);
+          let z = pos.getZ(i);
+
+          // Back crown drapery peak (classic silhouette)
+          if (y > 0.08) {
+            const topT = (y - 0.08) / 0.5;
+            y += 0.16 * Math.pow(topT, 1.5);
+            z -= 0.10 * topT;
+            x *= 1.0 - 0.08 * topT;
+          }
+
+          // Deep dramatic overhanging brow cowl in front (+Z)
+          if (z > 0.10) {
+            const fT = (z - 0.10) / 0.48;
+            if (y > 0.04) {
+              z += 0.21 * Math.pow(fT, 1.15);
+              y += 0.03 * fT;
+              x *= 0.93;
+            } else {
+              // Draped cheek walls framing the dark void
+              x *= 1.04 + 0.08 * fT;
+              z += 0.08 * fT;
+            }
+          }
+
+          // Lower hood flare flowing naturally into cowl collar
+          if (y < -0.20) {
+            const lowT = (-y - 0.20) / 0.38;
+            x *= 1.0 + 0.26 * lowT;
+            z *= 1.0 + 0.18 * lowT;
+          }
+
+          // Sculpted cloth fold ridges across sides & back of hood
+          const fold = Math.sin(x * 11 + y * 5) * 0.015 + Math.cos(z * 10 - y * 6) * 0.012;
+          x += fold * (x >= 0 ? 1 : -1) * 0.65;
+          z += fold * 0.5;
+
+          pos.setXYZ(i, x, y, z);
+        }
+        hoodGeo.computeVertexNormals();
+        const outerHood = new THREE.Mesh(hoodGeo, this.hoodieFabric);
+        this.headRig.add(outerHood);
+
+        // Thick Turned-In Fabric Hem framing the face opening (prevents paper-thin CG edges)
+        const hemCurvePts = [];
+        for (let a = 0; a < 36; a++) {
+          const theta = (a / 36) * Math.PI * 2;
+          const rx = Math.cos(theta) * 0.41;
+          const ry = Math.sin(theta) * 0.49 + 0.02;
+          const browPush = Math.max(0, Math.sin(theta)) * 0.15;
+          const rz = 0.34 + browPush + Math.sin(theta * 3) * 0.015;
+          hemCurvePts.push(new THREE.Vector3(rx, ry, rz));
+        }
+        const hemCurve = new THREE.CatmullRomCurve3(hemCurvePts, true);
+        const hemGeo = new THREE.TubeGeometry(hemCurve, 72, 0.056, 16, true);
+        const hemMesh = new THREE.Mesh(hemGeo, this.hoodieFabric);
+        this.headRig.add(hemMesh);
+
+        // Recessed Dark Inner Hood Liner (catches subtle crimson eye bounce!)
+        const innerLiner = new THREE.Mesh(
+          new THREE.SphereGeometry(0.45, 36, 28),
+          this.hoodieInnerFleece
+        );
+        innerLiner.position.set(0, 0.0, 0.10);
+        innerLiner.scale.set(0.92, 1.06, 0.92);
+        this.headRig.add(innerLiner);
+
+        // Mysterious Shadowed Head Silhouette inside hood
+        const innerHead = new THREE.Mesh(
+          new THREE.SphereGeometry(0.36, 32, 24),
+          this.shadowFaceMat
+        );
+        innerHead.position.set(0, -0.02, 0.12);
+        innerHead.scale.set(0.86, 1.05, 0.94);
+        this.headRig.add(innerHead);
+
+        // Razor-Sharp Luminous Red MR.ROBOT Eyes (clean architectural geometry -> selective bloom!)
+        const eyeShape = new THREE.Shape();
+        eyeShape.moveTo(-0.088, -0.004);
+        eyeShape.quadraticCurveTo(-0.01, 0.040, 0.088, 0.010);
+        eyeShape.quadraticCurveTo(0.01, -0.022, -0.088, -0.004);
+
+        const eyeGeo = new THREE.ExtrudeGeometry(eyeShape, {
+          depth: 0.014,
+          bevelEnabled: true,
+          bevelThickness: 0.004,
+          bevelSize: 0.004,
+          bevelSegments: 2
+        });
+
+        this.eyesGroup = new THREE.Group();
+        this.eyesGroup.position.set(0, 0.03, 0.44);
+        this.headRig.add(this.eyesGroup);
+
+        this.leftEye = new THREE.Mesh(eyeGeo, this.crimsonNeon);
+        this.leftEye.position.set(-0.138, 0, 0);
+        this.leftEye.rotation.set(0, -0.22, -0.13);
+
+        this.rightEye = new THREE.Mesh(eyeGeo, this.crimsonNeon);
+        this.rightEye.position.set(0.138, 0, 0);
+        this.rightEye.rotation.set(0, 0.22, 0.13);
+
+        this.eyesGroup.add(this.leftEye, this.rightEye);
+
+        // Subtle Directional Crimson Bounce Light inside the Hood Cowl
+        this.eyeBounceLight = new THREE.PointLight(0xff1e42, 2.6, 2.2, 2);
+        this.eyeBounceLight.position.set(0, 0.03, 0.52);
+        this.headRig.add(this.eyeBounceLight);
+      }
+
+      buildStudioHeadphones() {
+        const hp = new THREE.Group();
+        this.headRig.add(hp);
+
+        // Outer Brushed Gunmetal Arch
+        const arch = new THREE.Mesh(
+          new THREE.TorusGeometry(0.64, 0.044, 18, 60, Math.PI * 1.06),
+          this.anodizedMetal
+        );
+        arch.position.set(0, 0.08, -0.02);
+        arch.rotation.z = -0.03 * Math.PI;
+        arch.scale.set(1.02, 1.12, 1.38);
+        hp.add(arch);
+
+        // Padded Inner Leather Headband Underside
+        const innerPad = new THREE.Mesh(
+          new THREE.TorusGeometry(0.60, 0.032, 14, 48, Math.PI * 0.84),
+          this.leatherCushion
+        );
+        innerPad.position.set(0, 0.08, -0.02);
+        innerPad.rotation.z = 0.08 * Math.PI;
+        innerPad.scale.set(1.02, 1.12, 1.2);
+        hp.add(innerPad);
+
+        // Razor-thin Crimson Top Accent Line on Headband
+        const topLine = new THREE.Mesh(
+          new THREE.TorusGeometry(0.682, 0.008, 8, 44, Math.PI * 0.56),
+          this.crimsonNeon
+        );
+        topLine.position.set(0, 0.085, -0.02);
+        topLine.rotation.z = 0.22 * Math.PI;
+        topLine.scale.set(1.02, 1.12, 1.0);
+        hp.add(topLine);
+
+        // High-Detail Over-Ear Studio Cups with Yoke Hinges & Architectural Red Ring Diffusers
+        [-1, 1].forEach((side) => {
+          const cup = new THREE.Group();
+          cup.position.set(side * 0.64, -0.02, 0.0);
+          cup.rotation.z = side * 0.07;
+
+          // Yoke Bracket
+          const yoke = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.024, 0.024, 0.24, 12),
+            this.anodizedMetal
+          );
+          yoke.position.set(side * 0.04, 0.18, 0);
+          cup.add(yoke);
+
+          // Memory-Foam Ear Cushion
+          const cushion = new THREE.Mesh(
+            new THREE.TorusGeometry(0.165, 0.068, 18, 36),
+            this.leatherCushion
+          );
+          cushion.rotation.y = Math.PI / 2;
+          cushion.position.x = -side * 0.02;
+          cup.add(cushion);
+
+          // Brushed Anodized Outer Shell
+          const shell = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.155, 0.195, 0.11, 32),
+            this.anodizedMetal
+          );
+          shell.rotation.z = Math.PI / 2;
+          shell.position.x = side * 0.065;
+          cup.add(shell);
+
+          // Recessed Matte Center Cap
+          const cap = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.125, 0.132, 0.03, 32),
+            this.hoodieInnerFleece
+          );
+          cap.rotation.z = Math.PI / 2;
+          cap.position.x = side * 0.122;
+          cup.add(cap);
+
+          // Crisp Architectural Red Neon Ring Diffuser
+          const redRing = new THREE.Mesh(
+            new THREE.TorusGeometry(0.145, 0.011, 12, 40),
+            this.crimsonNeon
+          );
+          redRing.rotation.y = Math.PI / 2;
+          redRing.position.x = side * 0.125;
+          cup.add(redRing);
+
+          hp.add(cup);
+        });
+      }
+
+      buildArticulatedArms() {
+        const buildArm = (side) => {
+          const shoulder = new THREE.Group();
+          shoulder.position.set(side * 0.86, 0.69, 0.02);
+
+          // Sculpted Draped Shoulder Cap
+          const shoulderCap = new THREE.Mesh(
+            new THREE.SphereGeometry(0.21, 24, 20),
+            this.hoodieFabric
+          );
+          shoulderCap.scale.set(0.95, 1.08, 0.92);
+          shoulder.add(shoulderCap);
+
+          // Upper Sleeve with natural fabric taper
+          const upper = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.185, 0.15, 0.72, 24),
+            this.hoodieFabric
+          );
+          upper.position.y = -0.35;
+          shoulder.add(upper);
+
+          const elbow = new THREE.Group();
+          elbow.position.set(0, -0.70, 0);
+          shoulder.add(elbow);
+
+          // Forearm Sleeve
+          const forearm = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.15, 0.112, 0.62, 24),
+            this.hoodieFabric
+          );
+          forearm.position.y = -0.30;
+          elbow.add(forearm);
+
+          // Ribbed Hoodie Wrist Cuff
+          const cuff = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.112, 0.098, 0.09, 24),
+            this.hoodieInnerFleece
+          );
+          cuff.position.y = -0.60;
+          elbow.add(cuff);
+
+          // Subtle Cyber Cuff Micro-Ring
+          const cuffLine = new THREE.Mesh(
+            new THREE.TorusGeometry(0.106, 0.006, 10, 28),
+            this.steelCyanAccent
+          );
+          cuffLine.rotation.x = Math.PI / 2;
+          cuffLine.position.y = -0.57;
+          elbow.add(cuffLine);
+
+          // Sculpted Tactile Matte Glove + Articulated Fingers
+          const hand = new THREE.Group();
+          hand.position.set(0, -0.68, 0);
+
+          const palm = new THREE.Mesh(
+            new THREE.BoxGeometry(0.135, 0.165, 0.068),
+            this.leatherCushion
+          );
+          hand.add(palm);
+
+          const knucklePlate = new THREE.Mesh(
+            new THREE.BoxGeometry(0.125, 0.036, 0.076),
+            this.anodizedMetal
+          );
+          knucklePlate.position.y = -0.025;
+          hand.add(knucklePlate);
+
+          for (let f = -1.5; f <= 1.5; f += 1) {
+            const finger = new THREE.Mesh(
+              new THREE.CapsuleGeometry(0.013, 0.095, 6, 10),
+              this.leatherCushion
+            );
+            finger.position.set(f * 0.032, -0.125, 0.018);
+            finger.rotation.x = 0.28 + Math.abs(f) * 0.05;
+            hand.add(finger);
+          }
+
+          // Thumb
+          const thumb = new THREE.Mesh(
+            new THREE.CapsuleGeometry(0.014, 0.065, 6, 10),
+            this.leatherCushion
+          );
+          thumb.position.set(-side * 0.075, -0.03, 0.03);
+          thumb.rotation.z = side * 0.55;
+          thumb.rotation.x = 0.35;
+          hand.add(thumb);
+
+          elbow.add(hand);
+          this.bodyRig.add(shoulder);
+          return { shoulder, elbow, hand };
+        };
+
+        this.leftArm = buildArm(-1);
+        this.rightArm = buildArm(1);
+      }
+
+      buildInteractiveHoloOrb() {
+        // Glass holographic core that floats directly in sync with MR.ROBOT's gesturing hand
+        this.holoOrb = new THREE.Group();
+        this.holoOrb.position.set(0.85, 0.52, 0.72);
+        this.root.add(this.holoOrb);
+
+        const glassCore = new THREE.Mesh(
+          new THREE.IcosahedronGeometry(0.20, 2),
+          new THREE.MeshPhysicalMaterial({
+            color: 0x93c5fd,
+            roughness: 0.08,
+            metalness: 0.1,
+            transmission: 0.72,
+            thickness: 0.5,
+            ior: 1.45
+          })
+        );
+        const wireCore = new THREE.Mesh(
+          new THREE.IcosahedronGeometry(0.24, 1),
+          new THREE.MeshBasicMaterial({ color: 0x38bdf8, wireframe: true, transparent: true, opacity: 0.48 })
+        );
+        const orbitA = new THREE.Mesh(
+          new THREE.TorusGeometry(0.36, 0.007, 10, 56),
+          this.steelCyanAccent
+        );
+        orbitA.rotation.x = 1.05;
+        const orbitB = new THREE.Mesh(
+          new THREE.TorusGeometry(0.44, 0.005, 10, 56),
+          this.crimsonNeon
+        );
+        orbitB.rotation.y = 0.85;
+
+        this.orbParts = { glassCore, wireCore, orbitA, orbitB };
+        this.holoOrb.add(glassCore, wireCore, orbitA, orbitB);
+      }
+
+      async loadOfficialReferenceModel(urlOrBlobUrl) {
+        const loader = new GLTFLoader();
+        return new Promise((resolve, reject) => {
+          loader.load(
+            urlOrBlobUrl,
+            (gltf) => {
+              this.clearCustomModel();
+              const model = gltf.scene;
+
+              // Auto-normalize scale & center to match our studio character framing
+              const box = new THREE.Box3().setFromObject(model);
+              const size = new THREE.Vector3();
+              const center = new THREE.Vector3();
+              box.getSize(size);
+              box.getCenter(center);
+
+              const targetHeight = 3.15;
+              const scale = targetHeight / Math.max(size.y, 0.001);
+              model.scale.setScalar(scale);
+              model.position.set(-center.x * scale, -box.min.y * scale - 1.38, -center.z * scale);
+
+              model.traverse((child) => {
+                if (child.isMesh) {
+                  child.castShadow = true;
+                  child.receiveShadow = true;
+                }
+              });
+
+              this.customModelSlot.add(model);
+              this.proceduralRoot.visible = false;
+              this.usingCustomGlb = true;
+
+              if (gltf.animations && gltf.animations.length > 0) {
+                this.customMixer = new THREE.AnimationMixer(model);
+                this.customMixer.clipAction(gltf.animations[0]).play();
+              }
+              resolve(gltf);
+            },
+            undefined,
+            (err) => reject(err)
+          );
+        });
+      }
+
+      clearCustomModel() {
+        while (this.customModelSlot.children.length) {
+          this.customModelSlot.remove(this.customModelSlot.children[0]);
+        }
+        this.customMixer = null;
+        this.usingCustomGlb = false;
+        this.proceduralRoot.visible = true;
+      }
+
+      update(elapsed, delta, mouse, reducedMotion, productDragImpulse) {
+        const m = reducedMotion ? 0.25 : 1.0;
+
+        if (this.customMixer) {
+          this.customMixer.update(delta);
+        }
+
+        // Natural subtle chest breathing & organic micro-sway
+        const breath = Math.sin(elapsed * 1.65) * m;
+        const targetRig = this.usingCustomGlb ? this.customModelSlot : this.bodyRig;
+        targetRig.position.y = breath * 0.038;
+
+        if (!this.usingCustomGlb) {
+          this.bodyRig.scale.set(1 + breath * 0.011, 1 + breath * 0.008, 1 + breath * 0.011);
+
+          // Cinema-smooth Head Gaze tracking cursor + scene focus bias (e.g., looking at 3D Product Stage)
+          const gazeY = THREE.MathUtils.clamp(mouse.x * 0.36 + this.pose.lookBiasX, -0.55, 0.55) * m;
+          const gazeX = THREE.MathUtils.clamp(-mouse.y * 0.18, -0.22, 0.22) * m;
+          this.headRig.rotation.y = THREE.MathUtils.lerp(this.headRig.rotation.y, gazeY, 0.06);
+          this.headRig.rotation.x = THREE.MathUtils.lerp(this.headRig.rotation.x, gazeX, 0.06);
+          this.headRig.rotation.z = Math.sin(elapsed * 0.72) * 0.025 * m;
+
+          // Natural Periodic Eye Blinking
+          this.blinkTimer -= delta;
+          if (this.blinkTimer <= 0 && !this.isBlinking) {
+            this.isBlinking = true;
+            this.blinkT = 0;
+            this.blinkTimer = 3.4 + Math.random() * 2.6;
+          }
+          let eyeSY = 1.0;
+          if (this.isBlinking) {
+            this.blinkT += delta * 10.5;
+            if (this.blinkT >= Math.PI) {
+              this.isBlinking = false;
+            } else {
+              eyeSY = Math.max(0.06, 1.0 - Math.sin(this.blinkT));
+            }
+          }
+          this.leftEye.scale.y = eyeSY;
+          this.rightEye.scale.y = eyeSY;
+
+          const eyePulse = 1 + Math.sin(elapsed * 2.8) * 0.10 * m;
+          this.crimsonNeon.emissiveIntensity = THREE.MathUtils.lerp(
+            this.crimsonNeon.emissiveIntensity,
+            this.pose.eyeGlow * eyePulse,
+            0.06
+          );
+          this.eyeBounceLight.intensity = 2.2 * eyeSY * eyePulse;
+
+          // Synchronized Hand & Arm Gestures (reacting subtly to user 3D product drag too!)
+          const wave = Math.sin(elapsed * 1.25) * 0.045 * m;
+          const dragGesture = THREE.MathUtils.clamp(productDragImpulse * 2.8, -0.35, 0.35);
+
+          this.leftArm.shoulder.rotation.x = THREE.MathUtils.lerp(this.leftArm.shoulder.rotation.x, this.pose.lShX + wave - dragGesture * 0.4, 0.06);
+          this.leftArm.shoulder.rotation.z = THREE.MathUtils.lerp(this.leftArm.shoulder.rotation.z, this.pose.lShZ, 0.06);
+          this.leftArm.elbow.rotation.x    = THREE.MathUtils.lerp(this.leftArm.elbow.rotation.x, this.pose.lElX - wave * 0.6, 0.06);
+
+          this.rightArm.shoulder.rotation.x = THREE.MathUtils.lerp(this.rightArm.shoulder.rotation.x, this.pose.rShX - wave, 0.06);
+          this.rightArm.shoulder.rotation.z = THREE.MathUtils.lerp(this.rightArm.shoulder.rotation.z, this.pose.rShZ, 0.06);
+          this.rightArm.elbow.rotation.x    = THREE.MathUtils.lerp(this.rightArm.elbow.rotation.x, this.pose.rElX + wave * 0.7, 0.06);
+        }
+
+        // Interactive Floating Holo-Orb synchronized above MR.ROBOT's hand
+        const oScale = THREE.MathUtils.lerp(this.holoOrb.scale.x, this.pose.orbScale, 0.065);
+        this.holoOrb.scale.setScalar(Math.max(0.001, oScale));
+        this.holoOrb.visible = oScale > 0.015;
+        this.holoOrb.position.x = THREE.MathUtils.lerp(this.holoOrb.position.x, this.pose.orbPos[0], 0.06);
+        this.holoOrb.position.y = THREE.MathUtils.lerp(this.holoOrb.position.y, this.pose.orbPos[1] + Math.sin(elapsed * 2.0) * 0.06 * m, 0.06);
+        this.holoOrb.position.z = THREE.MathUtils.lerp(this.holoOrb.position.z, this.pose.orbPos[2], 0.06);
+
+        this.orbParts.glassCore.rotation.y += delta * 0.55 * m;
+        this.orbParts.wireCore.rotation.x -= delta * 0.42 * m;
+        this.orbParts.orbitA.rotation.z += delta * 0.9 * m;
+        this.orbParts.orbitB.rotation.x -= delta * 0.65 * m;
+      }
+    }
+
+    /* =========================================================================
+       4. ARCHITECTURAL 3-LAYER CINEMA ENVIRONMENT (BG / MID / FOREGROUND)
+    ========================================================================= */
+    function buildCinemaEnvironment(scene) {
+      const envGroup = new THREE.Group();
+      scene.add(envGroup);
+
+      // MIDGROUND: Reflective Dark-Slate Studio Floor with Minimalist Architectural Inlays
+      const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(42, 42),
+        new THREE.MeshPhysicalMaterial({
+          map: createStudioFloorTextures(),
+          color: 0x0a1326,
+          roughness: 0.34,
+          metalness: 0.62,
+          clearcoat: 0.35,
+          clearcoatRoughness: 0.38
+        })
+      );
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = -1.42;
+      envGroup.add(floor);
+
+      // BACKGROUND LAYER: Monumental Brutalist Dark-Obsidian Architectural Monoliths
+      const monolithMat = new THREE.MeshPhysicalMaterial({
+        color: 0x070d1c,
+        roughness: 0.42,
+        metalness: 0.72,
+        clearcoat: 0.2
+      });
+      const slitBlueMat = new THREE.MeshStandardMaterial({
+        color: 0x38bdf8,
+        emissive: 0x2563eb,
+        emissiveIntensity: 1.75,
+        toneMapped: false
+      });
+      const slitRedMat = new THREE.MeshStandardMaterial({
+        color: 0xff2a4e,
+        emissive: 0xef1d42,
+        emissiveIntensity: 2.2,
+        toneMapped: false
+      });
+
+      const monolithGroup = new THREE.Group();
+      const pillarCount = 8;
+      for (let i = 0; i < pillarCount; i++) {
+        const t = (i / (pillarCount - 1)) - 0.5;
+        const angle = t * Math.PI * 0.82;
+        const radius = 8.4 + Math.abs(t) * 2.2;
+        const px = Math.sin(angle) * radius;
+        const pz = -Math.cos(angle) * radius - 1.5;
+
+        const pillar = new THREE.Group();
+        pillar.position.set(px, 2.8, pz);
+        pillar.lookAt(0, 2.8, 2);
+
+        const body = new THREE.Mesh(new THREE.BoxGeometry(1.15, 9.2, 0.75), monolithMat);
+        pillar.add(body);
+
+        // Razor-thin Architectural Light Slit
+        const isCenterPair = i === 3 || i === 4;
+        const slit = new THREE.Mesh(
+          new THREE.BoxGeometry(0.028, 7.6, 0.04),
+          isCenterPair ? slitRedMat : slitBlueMat
+        );
+        slit.position.z = 0.385;
+        pillar.add(slit);
+
+        monolithGroup.add(pillar);
+      }
+      envGroup.add(monolithGroup);
+
+      // Monumental Horizon Orbital Halo behind the architectural sanctuary
+      const horizonHalo = new THREE.Mesh(
+        new THREE.TorusGeometry(6.8, 0.018, 12, 120),
+        new THREE.MeshStandardMaterial({
+          color: 0x60a5fa,
+          emissive: 0x1d4ed8,
+          emissiveIntensity: 1.5,
+          transparent: true,
+          opacity: 0.55
+        })
+      );
+      horizonHalo.position.set(0, 1.8, -7.8);
+      envGroup.add(horizonHalo);
+
+      // FOREGROUND PARALLAX LAYER: Subtle dark glass architectural framing fins near camera edges
+      const fgGroup = new THREE.Group();
+      const fgGlassMat = new THREE.MeshPhysicalMaterial({
+        color: 0x0a1733,
+        roughness: 0.14,
+        metalness: 0.25,
+        transmission: 0.55,
+        transparent: true,
+        opacity: 0.36
+      });
+      const finLeft = new THREE.Mesh(new THREE.BoxGeometry(0.06, 5.2, 1.4), fgGlassMat);
+      finLeft.position.set(-4.6, 1.2, 3.2);
+      finLeft.rotation.y = 0.42;
+      const finRight = new THREE.Mesh(new THREE.BoxGeometry(0.06, 5.2, 1.4), fgGlassMat);
+      finRight.position.set(4.6, 1.2, 3.2);
+      finRight.rotation.y = -0.42;
+      fgGroup.add(finLeft, finRight);
+      envGroup.add(fgGroup);
+
+      // RESTRAINED ATMOSPHERIC DUST MOTES (subtle depth, never noisy)
+      const dustCount = window.innerWidth < 768 ? 160 : 340;
+      const dPos = new Float32Array(dustCount * 3);
+      for (let i = 0; i < dustCount; i++) {
+        dPos[i * 3]     = (Math.random() - 0.5) * 18;
+        dPos[i * 3 + 1] = (Math.random() - 0.2) * 9;
+        dPos[i * 3 + 2] = (Math.random() - 0.5) * 14;
+      }
+      const dustGeo = new THREE.BufferGeometry();
+      dustGeo.setAttribute('position', new THREE.BufferAttribute(dPos, 3));
+      const dust = new THREE.Points(
+        dustGeo,
+        new THREE.PointsMaterial({
+          color: 0x93c5fd,
+          size: 0.032,
+          transparent: true,
+          opacity: 0.42,
+          depthWrite: false
+        })
+      );
+      envGroup.add(dust);
+
+      return { monolithGroup, horizonHalo, fgGroup, dust, slitRedMat };
+    }
+
+    /* =========================================================================
+       5. INTERACTIVE 3D PRODUCT SHOWCASE ARTIFACTS (GLASS + ANODIZED METAL)
+    ========================================================================= */
+    class ProductShowcase3D {
+      constructor() {
+        this.root = new THREE.Group();
+        this.pivot = new THREE.Group();
+        this.root.add(this.pivot);
+
+        this.items = {};
+        this.rotY = 0;
+        this.dragVel = 0;
+        this.scaleNow = 0.001;
+        this.scaleTarget = 0.001;
+
+        this.buildStageBase();
+        this.buildArtifacts();
+        this.setArtifact('aiCore');
+      }
+
+      buildStageBase() {
+        const ring1 = new THREE.Mesh(
+          new THREE.TorusGeometry(0.88, 0.009, 10, 72),
+          new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0ea5e9, emissiveIntensity: 1.8, toneMapped: false })
+        );
+        ring1.rotation.x = Math.PI / 2;
+        ring1.position.y = -0.92;
+        this.root.add(ring1);
+        this.baseRing = ring1;
+      }
+
+      buildArtifacts() {
+        const metal = new THREE.MeshPhysicalMaterial({ color: 0x1e2c48, roughness: 0.22, metalness: 0.92, clearcoat: 0.5 });
+        const glass = new THREE.MeshPhysicalMaterial({ color: 0x60a5fa, roughness: 0.08, metalness: 0.1, transmission: 0.72, thickness: 0.6, ior: 1.48 });
+        const redGlow = new THREE.MeshStandardMaterial({ color: 0xff2a4e, emissive: 0xef1d42, emissiveIntensity: 2.8, toneMapped: false });
+        const cyanGlow = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 2.0, toneMapped: false });
+
+        // 1. AI Neural Prism Core
+        const aiCore = new THREE.Group();
+        aiCore.add(
+          new THREE.Mesh(new THREE.OctahedronGeometry(0.68, 1), glass),
+          new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.46, 0.46), metal),
+          (() => { const r = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.013, 12, 64), redGlow); r.rotation.x = 0.9; return r; })(),
+          (() => { const r = new THREE.Mesh(new THREE.TorusGeometry(0.76, 0.009, 12, 64), cyanGlow); r.rotation.y = 1.1; return r; })()
+        );
+        this.items.aiCore = aiCore;
+
+        // 2. V2Ray Encrypted Shield Prism
+        const vpnShield = new THREE.Group();
+        vpnShield.add(
+          new THREE.Mesh(new THREE.IcosahedronGeometry(0.58, 0), metal),
+          (() => { const r = new THREE.Mesh(new THREE.TorusGeometry(0.86, 0.018, 10, 6), cyanGlow); return r; })(),
+          (() => { const r = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.011, 10, 6), redGlow); r.rotation.y = Math.PI / 2; return r; })()
+        );
+        this.items.vpnShield = vpnShield;
+
+        // 3. Precision Titanium Smartphone Monolith
+        const applePhone = new THREE.Group();
+        const chassis = new THREE.Mesh(new THREE.BoxGeometry(0.72, 1.44, 0.085), metal);
+        const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.64, 1.34), new THREE.MeshBasicMaterial({ map: createPhoneOledTexture() }));
+        screen.position.z = 0.045;
+        const camBlock = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.26, 0.035), new THREE.MeshStandardMaterial({ color: 0x0c1324, roughness: 0.25, metalness: 0.85 }));
+        camBlock.position.set(0.16, 0.48, -0.052);
+        applePhone.add(chassis, screen, camBlock);
+        this.items.applePhone = applePhone;
+
+        // 4. Obsidian Metal Digital Keycard
+        const obsidianCard = new THREE.Group();
+        const cardBody = new THREE.Mesh(new THREE.BoxGeometry(1.34, 0.84, 0.042), metal);
+        const chip = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.052), redGlow);
+        chip.position.set(-0.38, 0.1, 0);
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.042, 0.048), cyanGlow);
+        bar.position.y = -0.24;
+        obsidianCard.add(cardBody, chip, bar);
+        this.items.obsidianCard = obsidianCard;
+
+        // 5. Neural Dev Vault Sculpture
+        const neuralVault = new THREE.Group();
+        neuralVault.add(
+          new THREE.Mesh(new THREE.TorusKnotGeometry(0.42, 0.11, 100, 18), metal),
+          new THREE.Mesh(new THREE.SphereGeometry(0.76, 20, 16), new THREE.MeshBasicMaterial({ color: 0x38bdf8, wireframe: true, transparent: true, opacity: 0.2 }))
+        );
+        this.items.neuralVault = neuralVault;
+
+        Object.values(this.items).forEach((grp) => {
+          grp.visible = false;
+          this.pivot.add(grp);
+        });
+      }
+
+      setArtifact(key) {
+        if (!this.items[key]) return;
+        Object.entries(this.items).forEach(([k, grp]) => { grp.visible = k === key; });
+        this.pivot.scale.setScalar(0.68);
+        this.dragVel = 0.065;
+      }
+
+      update(elapsed, delta, reducedMotion) {
+        const m = reducedMotion ? 0.22 : 1.0;
+        this.scaleNow = THREE.MathUtils.lerp(this.scaleNow, this.scaleTarget, 0.08);
+        this.root.scale.setScalar(Math.max(0.001, this.scaleNow));
+        this.root.visible = this.scaleNow > 0.015;
+
+        const pScale = THREE.MathUtils.lerp(this.pivot.scale.x, 1.0, 0.1);
+        this.pivot.scale.setScalar(pScale);
+
+        this.dragVel *= 0.93;
+        this.rotY += this.dragVel + delta * 0.4 * m;
+        this.pivot.rotation.y = this.rotY;
+        this.pivot.rotation.x = Math.sin(elapsed * 0.95) * 0.12 * m;
+        this.pivot.position.y = Math.sin(elapsed * 1.8) * 0.06 * m;
+        this.baseRing.rotation.z += delta * 0.35 * m;
+      }
+    }
+
+    /* =========================================================================
+       6. RENDERER, POST-PROCESSING (SELECTIVE CINEMA BLOOM) & LIGHTING
+    ========================================================================= */
+    const canvas = document.getElementById('webgl-canvas');
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: false,
+      powerPreference: 'high-performance'
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.08;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x030712);
+    scene.fog = new THREE.FogExp2(0x030712, 0.044);
+    scene.environment = createStudioEnvironmentMap(renderer);
+
+    const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 1.32, 6.2);
+
+    // Post-Processing: Tuned Selective UnrealBloomPass (High threshold = crisp studio glow only)
+    let composer = null;
+    try {
+      composer = new EffectComposer(renderer);
+      composer.addPass(new RenderPass(scene, camera));
+      const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        0.46,  // Subtle strength
+        0.58,  // Refined radius
+        0.92   // High threshold so only red eyes, headphone lines & holo edges bloom
+      );
+      composer.addPass(bloomPass);
+      composer.addPass(new OutputPass());
+    } catch (e) {
+      composer = null;
+    }
+
+    // Cinema 3-Point Studio Lighting Rig
+    const hemiLight = new THREE.HemisphereLight(0x3a64b0, 0x050914, 0.85);
+    scene.add(hemiLight);
+
+    const keyLight = new THREE.DirectionalLight(0xcbe0ff, 2.1);
+    keyLight.position.set(3.2, 5.2, 4.8);
+    scene.add(keyLight);
+
+    const rimCyan = new THREE.SpotLight(0x38bdf8, 8.5, 22, Math.PI / 3.2, 0.65, 1.3);
+    rimCyan.position.set(-4.4, 4.2, -3.4);
+    scene.add(rimCyan);
+
+    const rimViolet = new THREE.PointLight(0x6366f1, 4.2, 16, 1.6);
+    rimViolet.position.set(4.5, 2.6, -2.8);
+    scene.add(rimViolet);
+
+    const crimsonFill = new THREE.PointLight(0xef1d42, 2.2, 11, 1.8);
+    crimsonFill.position.set(-2.2, 0.5, 3.0);
+    scene.add(crimsonFill);
+
+    const envRig = buildCinemaEnvironment(scene);
+    const mrRobot = new StudioMrRobotRig();
+    scene.add(mrRobot.root);
+
+    const productStage = new ProductShowcase3D();
+    scene.add(productStage.root);
+
+    // Auto-load official .glb if configured in MR_ROBOT_ASSET_CONFIG
+    if (window.MR_ROBOT_ASSET_CONFIG.modelUrl) {
+      mrRobot.loadOfficialReferenceModel(window.MR_ROBOT_ASSET_CONFIG.modelUrl).catch(() => {});
+    }
+
+    /* =========================================================================
+       7. CONTINUOUS MOTION-DESIGN SCROLL CHOREOGRAPHY (8 RTL-BALANCED SCENES)
+          In RTL: Hero text is on the RIGHT, so MR.ROBOT commands the LEFT (-X).
+    ========================================================================= */
+    const STORY_KEYFRAMES = [
+      // 0: Hero (RTL: MR.ROBOT on Left, Headline Right)
+      {
+        cam: [0.15, 1.30, 5.95], look: [-0.28, 1.02, 0], fov: 38,
+        charPos: [-1.42, -0.08, 0.25], charRotY: 0.36,
+        pose: { lShX: 0.12, lShZ: 0.14, lElX: -0.42, rShX: -0.24, rShZ: -0.18, rElX: -0.64, orbScale: 0.001, orbPos: [0.85, 0.52, 0.72], eyeGlow: 3.5, lookBiasX: 0.12 },
+        fog: 0x030712, rimC: 0x38bdf8, rimV: 0x4f46e5, stageScale: 0.001
+      },
+      // 1: Brand Identity (MR.ROBOT glides Right & manipulates floating Glass Core)
+      {
+        cam: [0.45, 1.26, 5.45], look: [0.25, 0.98, 0], fov: 37,
+        charPos: [1.46, -0.06, 0.42], charRotY: -0.44,
+        pose: { lShX: -0.78, lShZ: 0.32, lElX: -0.68, rShX: 0.08, rShZ: -0.15, rElX: -0.42, orbScale: 1.0, orbPos: [-0.88, 0.56, 0.78], eyeGlow: 3.7, lookBiasX: -0.18 },
+        fog: 0x040a1a, rimC: 0x38bdf8, rimV: 0x3b82f6, stageScale: 0.001
+      },
+      // 2: Services Showcase (Wide architectural crane shot, MR.ROBOT centered in depth)
+      {
+        cam: [0, 1.56, 7.6], look: [0, 0.92, 0], fov: 40,
+        charPos: [0, 0.06, -2.0], charRotY: 0,
+        pose: { lShX: -0.42, lShZ: 0.44, lElX: -0.52, rShX: -0.42, rShZ: -0.44, rElX: -0.52, orbScale: 0.001, orbPos: [0, 0.8, 0.9], eyeGlow: 3.2, lookBiasX: 0 },
+        fog: 0x030816, rimC: 0x60a5fa, rimV: 0x2563eb, stageScale: 0.001
+      },
+      // 3: Interactive 3D Marketplace (RTL: Catalog Right, 3D Product Window Left; MR.ROBOT observes & reacts!)
+      {
+        cam: [-0.22, 1.14, 5.8], look: [-0.48, 0.92, 0.45], fov: 38,
+        charPos: [2.28, -0.12, -1.25], charRotY: -0.58,
+        pose: { lShX: -0.58, lShZ: 0.28, lElX: -0.62, rShX: 0.1, rShZ: -0.14, rElX: -0.35, orbScale: 0.001, orbPos: [-0.9, 0.6, 0.8], eyeGlow: 3.4, lookBiasX: -0.36 },
+        fog: 0x030917, rimC: 0x38bdf8, rimV: 0x1d4ed8, stageScale: 1.0
+      },
+      // 4: AI Technology Experience (Violet-Cyan neural mood; MR.ROBOT Left in Conductor Stance)
+      {
+        cam: [-0.32, 1.30, 5.15], look: [-0.30, 1.02, 0], fov: 36,
+        charPos: [-1.52, -0.05, 0.35], charRotY: 0.40,
+        pose: { lShX: -0.74, lShZ: 0.30, lElX: -0.78, rShX: -0.74, rShZ: -0.30, rElX: -0.78, orbScale: 1.15, orbPos: [0.0, 0.62, 0.92], eyeGlow: 4.3, lookBiasX: 0.08 },
+        fog: 0x08061c, rimC: 0x38bdf8, rimV: 0x8b5cf6, stageScale: 0.001
+      },
+      // 5: Apple & Mobile Precision Lab (Clean crisp electric-blue; MR.ROBOT Right)
+      {
+        cam: [0.32, 1.24, 5.6], look: [0.22, 0.96, 0], fov: 37,
+        charPos: [1.56, -0.08, -0.1], charRotY: -0.38,
+        pose: { lShX: -0.52, lShZ: 0.22, lElX: -0.82, rShX: -0.25, rShZ: -0.16, rElX: -0.65, orbScale: 0.72, orbPos: [-0.76, 0.60, 0.76], eyeGlow: 3.3, lookBiasX: -0.16 },
+        fog: 0x040b1c, rimC: 0x60a5fa, rimV: 0x0ea5e9, stageScale: 0.001
+      },
+      // 6: Trust & Support (Calm authoritative symmetry in depth)
+      {
+        cam: [0, 1.32, 7.1], look: [0, 0.90, 0], fov: 39,
+        charPos: [0, -0.02, -2.2], charRotY: 0,
+        pose: { lShX: 0.06, lShZ: 0.16, lElX: -0.38, rShX: 0.06, rShZ: -0.16, rElX: -0.38, orbScale: 0.001, orbPos: [0, 0.7, 0.8], eyeGlow: 3.1, lookBiasX: 0 },
+        fog: 0x030a19, rimC: 0x38bdf8, rimV: 0x2563eb, stageScale: 0.001
+      },
+      // 7: Final Brand Finale (Heroic symmetrical cinema low-angle push-in)
+      {
+        cam: [0, 1.18, 4.75], look: [0, 1.06, 0], fov: 35,
+        charPos: [0, 0.06, 0.42], charRotY: 0,
+        pose: { lShX: 0.08, lShZ: 0.14, lElX: -0.36, rShX: 0.08, rShZ: -0.14, rElX: -0.36, orbScale: 0.001, orbPos: [0, 0.7, 0.8], eyeGlow: 4.5, lookBiasX: 0 },
+        fog: 0x070410, rimC: 0x38bdf8, rimV: 0xef1d42, stageScale: 0.001
+      }
+    ];
+
+    // Smooth continuous scroll progress (0..7) for film-like camera gliding
+    let rawScrollProgress = 0;
+    let smoothScrollProgress = 0;
+    let activeChapter = 0;
+
+    function updateScrollProgress() {
+      const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      rawScrollProgress = THREE.MathUtils.clamp(window.scrollY / maxScroll, 0, 1) * (STORY_KEYFRAMES.length - 1);
+    }
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+    updateScrollProgress();
+
+    // Sync Navbar + Chapter Rail & GSAP Card Entrances
+    if (window.gsap && window.ScrollTrigger) {
+      gsap.registerPlugin(ScrollTrigger);
+      const sectionIds = ['hero', 'intro', 'services', 'marketplace', 'ai-experience', 'apple-mobile', 'trust', 'finale'];
+
+      document.querySelectorAll('section.story-scene').forEach((sec, idx) => {
+        ScrollTrigger.create({
+          trigger: sec,
+          start: 'top 52%',
+          end: 'bottom 48%',
+          onEnter: () => syncChapterUI(idx, sectionIds),
+          onEnterBack: () => syncChapterUI(idx, sectionIds)
+        });
+
+        const revealItems = sec.querySelectorAll('.navy-card, .pillar-box, .neural-console');
+        if (revealItems.length) {
+          gsap.from(revealItems, {
+            y: 30,
+            opacity: 0,
+            duration: 0.78,
+            stagger: 0.08,
+            ease: 'power3.out',
+            scrollTrigger: { trigger: sec, start: 'top 76%', once: true }
+          });
+        }
+      });
+    }
+
+    function syncChapterUI(idx, sectionIds) {
+      activeChapter = idx;
+      document.querySelectorAll('.chapter-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
+      document.querySelectorAll('.nav-links a').forEach((a) => {
+        a.classList.toggle('active', a.dataset.nav === sectionIds[idx]);
+      });
+    }
+
+    /* =========================================================================
+       8. USER INTERACTION: MOUSE PARALLAX, 3D STAGE DRAG, REDUCED MOTION
+    ========================================================================= */
+    const mouse = { x: 0, y: 0 };
+    window.addEventListener('pointermove', (e) => {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -((e.clientY / window.innerHeight) * 2 - 1);
+    });
+
+    const holoStageEl = document.getElementById('hologram-stage');
+    let draggingHolo = false;
+    let lastX = 0;
+
+    holoStageEl.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('button')) return;
+      draggingHolo = true;
+      lastX = e.clientX;
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (!draggingHolo) return;
+      const dx = e.clientX - lastX;
+      lastX = e.clientX;
+      productStage.dragVel = dx * 0.015;
+    });
+    window.addEventListener('pointerup', () => { draggingHolo = false; });
+
+    let reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const motionBtn = document.getElementById('motion-toggle');
+    const motionLbl = document.getElementById('motion-label');
+    function syncMotionLabel() {
+      motionBtn.classList.toggle('is-active', !reducedMotion);
+      motionLbl.textContent = reducedMotion ? 'آرام' : 'سینمایی';
+    }
+    syncMotionLabel();
+    motionBtn.addEventListener('click', () => {
+      reducedMotion = !reducedMotion;
+      syncMotionLabel();
+      showToast(reducedMotion ? 'حالت حرکت آرام فعال شد' : 'حالت حرکت سینمایی کامل فعال شد');
+    });
+
+    document.querySelectorAll('.chapter-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const el = document.querySelector(btn.dataset.target);
+        if (el) el.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth' });
+      });
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      if (composer) composer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    /* =========================================================================
+       9. CONTINUOUS FILM-GRADE ANIMATION LOOP
+    ========================================================================= */
+    const clock = new THREE.Clock();
+    const tmpFogA = new THREE.Color();
+    const tmpFogB = new THREE.Color();
+    const tmpRimCA = new THREE.Color();
+    const tmpRimCB = new THREE.Color();
+    const tmpRimVA = new THREE.Color();
+    const tmpRimVB = new THREE.Color();
+    const currentLook = new THREE.Vector3(-0.28, 1.02, 0);
+
+    function lerpPose(a, b, t) {
+      return {
+        lShX: THREE.MathUtils.lerp(a.lShX, b.lShX, t),
+        lShZ: THREE.MathUtils.lerp(a.lShZ, b.lShZ, t),
+        lElX: THREE.MathUtils.lerp(a.lElX, b.lElX, t),
+        rShX: THREE.MathUtils.lerp(a.rShX, b.rShX, t),
+        rShZ: THREE.MathUtils.lerp(a.rShZ, b.rShZ, t),
+        rElX: THREE.MathUtils.lerp(a.rElX, b.rElX, t),
+        orbScale: THREE.MathUtils.lerp(a.orbScale, b.orbScale, t),
+        orbPos: [
+          THREE.MathUtils.lerp(a.orbPos[0], b.orbPos[0], t),
+          THREE.MathUtils.lerp(a.orbPos[1], b.orbPos[1], t),
+          THREE.MathUtils.lerp(a.orbPos[2], b.orbPos[2], t)
+        ],
+        eyeGlow: THREE.MathUtils.lerp(a.eyeGlow, b.eyeGlow, t),
+        lookBiasX: THREE.MathUtils.lerp(a.lookBiasX, b.lookBiasX, t)
+      };
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = Math.min(clock.getDelta(), 0.05);
+      const elapsed = clock.getElapsedTime();
+      const m = reducedMotion ? 0.25 : 1.0;
+
+      // Damped continuous scrub along all 8 cinema keyframes
+      smoothScrollProgress = THREE.MathUtils.lerp(smoothScrollProgress, rawScrollProgress, reducedMotion ? 0.18 : 0.075);
+      const i0 = Math.floor(smoothScrollProgress);
+      const i1 = Math.min(STORY_KEYFRAMES.length - 1, i0 + 1);
+      const f = THREE.MathUtils.smoothstep(smoothScrollProgress - i0, 0, 1);
+
+      const kfA = STORY_KEYFRAMES[i0];
+      const kfB = STORY_KEYFRAMES[i1];
+      const isCompact = window.innerWidth < 1040;
+      const xScale = isCompact ? 0.14 : 1.0;
+
+      // Smooth Camera Crane & Dolly Zoom + Cursor Parallax
+      const cx = THREE.MathUtils.lerp(kfA.cam[0], kfB.cam[0], f) * xScale + mouse.x * 0.26 * m;
+      const cy = THREE.MathUtils.lerp(kfA.cam[1], kfB.cam[1], f) + mouse.y * 0.14 * m;
+      const cz = THREE.MathUtils.lerp(kfA.cam[2], kfB.cam[2], f) + (isCompact ? 1.1 : 0);
+      camera.position.set(cx, cy, cz);
+
+      const fovNow = THREE.MathUtils.lerp(kfA.fov, kfB.fov, f);
+      if (Math.abs(camera.fov - fovNow) > 0.05) {
+        camera.fov = fovNow;
+        camera.updateProjectionMatrix();
+      }
+
+      const lx = THREE.MathUtils.lerp(kfA.look[0], kfB.look[0], f) * xScale;
+      const ly = THREE.MathUtils.lerp(kfA.look[1], kfB.look[1], f);
+      const lz = THREE.MathUtils.lerp(kfA.look[2], kfB.look[2], f);
+      currentLook.lerp(new THREE.Vector3(lx, ly, lz), 0.14);
+      camera.lookAt(currentLook);
+
+      // Character Choreography & Pose Blending
+      mrRobot.root.position.set(
+        THREE.MathUtils.lerp(kfA.charPos[0], kfB.charPos[0], f) * xScale,
+        THREE.MathUtils.lerp(kfA.charPos[1], kfB.charPos[1], f),
+        THREE.MathUtils.lerp(kfA.charPos[2], kfB.charPos[2], f)
+      );
+      mrRobot.root.rotation.y = THREE.MathUtils.lerp(kfA.charRotY, kfB.charRotY, f) * (isCompact ? 0.35 : 1.0);
+      mrRobot.pose = lerpPose(kfA.pose, kfB.pose, f);
+      mrRobot.update(elapsed, delta, mouse, reducedMotion, productStage.dragVel);
+
+      // 3D Product Marketplace Artifact (RTL Left Window Position)
+      const stagePresence = THREE.MathUtils.lerp(kfA.stageScale, kfB.stageScale, f);
+      productStage.scaleTarget = stagePresence * (isCompact ? 0.85 : 1.0);
+      productStage.root.position.set(isCompact ? 0.0 : -1.42, isCompact ? 1.05 : 0.96, isCompact ? 1.0 : 1.42);
+      productStage.update(elapsed, delta, reducedMotion);
+
+      // Architectural Atmospheric Color & Foreground Depth Parallax
+      tmpFogA.setHex(kfA.fog); tmpFogB.setHex(kfB.fog);
+      scene.fog.color.copy(tmpFogA).lerp(tmpFogB, f);
+      scene.background.copy(scene.fog.color);
+
+      tmpRimCA.setHex(kfA.rimC); tmpRimCB.setHex(kfB.rimC);
+      rimCyan.color.copy(tmpRimCA).lerp(tmpRimCB, f);
+
+      tmpRimVA.setHex(kfA.rimV); tmpRimVB.setHex(kfB.rimV);
+      rimViolet.color.copy(tmpRimVA).lerp(tmpRimVB, f);
+
+      envRig.horizonHalo.rotation.z += delta * 0.04 * m;
+      envRig.fgGroup.position.x = -mouse.x * 0.42 * m;
+      envRig.fgGroup.position.y = Math.sin(smoothScrollProgress * 0.9) * 0.35;
+      envRig.dust.rotation.y += delta * 0.014 * m;
+
+      if (composer) {
+        composer.render();
+      } else {
+        renderer.render(scene, camera);
+      }
+    }
+    animate();
+
+    /* =========================================================================
+       10. COMMERCE INTERACTIVITY (PERSIAN RTL + ZERO FABRICATED DATA)
+    ========================================================================= */
+    const toFaDigits = (n) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+
+    let activeProduct = CATALOG[0];
+    let activeFilter = 'all';
+    const bag = [];
+
+    const catalogListEl = document.getElementById('catalog-list');
+    function renderCatalog() {
+      const filtered = activeFilter === 'all' ? CATALOG : CATALOG.filter((p) => p.category === activeFilter);
+      catalogListEl.innerHTML = filtered.map((p) => `
+        <div class="catalog-item ${p.id === activeProduct.id ? 'selected' : ''}" data-pid="${p.id}">
+          <div>
+            <h4>${p.title}</h4>
+            <p>${p.short}</p>
+          </div>
+          <span class="placeholder-slot" style="flex-shrink:0;">${p.priceLabel}</span>
+        </div>
+      `).join('');
+
+      catalogListEl.querySelectorAll('.catalog-item').forEach((row) => {
+        row.addEventListener('click', () => {
+          const item = CATALOG.find((x) => x.id === row.dataset.pid);
+          if (item) selectProduct(item);
+        });
+      });
+    }
+
+    function selectProduct(item) {
+      activeProduct = item;
+      document.getElementById('holo-code').textContent = item.code;
+      document.getElementById('holo-title').textContent = item.title;
+      document.getElementById('holo-desc').textContent = item.desc;
+      document.getElementById('holo-price').textContent = item.priceLabel;
+      document.getElementById('holo-specs').innerHTML = item.specs.map((s) => `<span class="spec-tag">${s}</span>`).join('');
+      productStage.setArtifact(item.artifact);
+      renderCatalog();
+    }
+
+    document.getElementById('market-filters').addEventListener('click', (e) => {
+      const btn = e.target.closest('.filter-btn');
+      if (!btn) return;
+      activeFilter = btn.dataset.filter;
+      document.querySelectorAll('.filter-btn').forEach((b) => b.classList.toggle('active', b === btn));
+      const matched = activeFilter === 'all' ? CATALOG : CATALOG.filter((p) => p.category === activeFilter);
+      if (matched.length && !matched.some((m) => m.id === activeProduct.id)) {
+        selectProduct(matched[0]);
+      } else {
+        renderCatalog();
+      }
+    });
+    selectProduct(CATALOG[0]);
+
+    document.querySelectorAll('[data-inspect-id]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const found = CATALOG.find((c) => c.id === el.dataset.inspectId);
+        if (found) selectProduct(found);
+      });
+    });
+
+    // AI Workflow Selector (Scene 5)
+    let activeIntent = 'dev';
+    function renderAiPlan(key) {
+      activeIntent = key;
+      const plan = AI_WORKFLOWS[key];
+      document.getElementById('ai-plan-title').textContent = plan.title;
+      document.getElementById('ai-plan-price').textContent = plan.priceLabel;
+      document.getElementById('ai-plan-desc').textContent = plan.desc;
+      document.getElementById('ai-plan-features').innerHTML = plan.features.map((f) => `<div class="ai-feature-pill">${f}</div>`).join('');
+    }
+    renderAiPlan('dev');
+
+    document.getElementById('ai-intent-tabs').addEventListener('click', (e) => {
+      const btn = e.target.closest('.intent-btn');
+      if (!btn) return;
+      document.querySelectorAll('.intent-btn').forEach((b) => b.classList.toggle('active', b === btn));
+      renderAiPlan(btn.dataset.intent);
+      // Subtle synchronized neural flash on character eyes
+      mrRobot.crimsonNeon.emissiveIntensity = 5.4;
+    });
+
+    document.getElementById('ai-add-plan').addEventListener('click', () => {
+      const p = AI_WORKFLOWS[activeIntent];
+      addToBag({ id: p.id, title: p.title, priceLabel: p.priceLabel });
+    });
+
+    // Order Bag Drawer
+    const drawer = document.getElementById('order-drawer');
+    const backdrop = document.getElementById('bag-backdrop');
+    const openBag = () => { drawer.classList.add('open'); backdrop.classList.add('open'); };
+    const closeBag = () => { drawer.classList.remove('open'); backdrop.classList.remove('open'); };
+
+    document.getElementById('open-bag-btn').addEventListener('click', openBag);
+    document.getElementById('finale-open-bag').addEventListener('click', openBag);
+    document.getElementById('close-bag-btn').addEventListener('click', closeBag);
+    backdrop.addEventListener('click', closeBag);
+
+    function addToBag(item) {
+      const ex = bag.find((b) => b.id === item.id);
+      if (ex) ex.qty += 1;
+      else bag.push({ ...item, qty: 1 });
+      renderBag();
+      showToast(`«${item.title}» به سبد سفارش اضافه شد`);
+    }
+
+    function renderBag() {
+      const count = bag.reduce((s, i) => s + i.qty, 0);
+      document.getElementById('bag-count').textContent = toFaDigits(count);
+      document.getElementById('bag-total-note').textContent = count
+        ? `${toFaDigits(count)} مورد — [محاسبه تعرفه]`
+        : '[سبد سفارش خالی است]';
+
+      const listEl = document.getElementById('bag-list');
+      if (!bag.length) {
+        listEl.innerHTML = `<div style="text-align:center; padding:48px 16px; color:var(--text-muted);">
+          <p style="margin-bottom:8px;">سبد سفارش شما خالی است.</p>
+          <small>هر سرویس یا محصول دیجیتال را برای ثبت پیش‌سفارش انتخاب کنید.</small>
+        </div>`;
+        return;
+      }
+
+      listEl.innerHTML = bag.map((item, idx) => `
+        <div class="bag-row">
+          <div>
+            <h4>${item.title}</h4>
+            <small>${item.priceLabel}</small>
+          </div>
+          <div class="qty-box">
+            <button class="qty-btn" data-d="-1" data-i="${idx}">−</button>
+            <span style="min-width:20px; text-align:center;">${toFaDigits(item.qty)}</span>
+            <button class="qty-btn" data-d="1" data-i="${idx}">+</button>
+          </div>
+        </div>
+      `).join('');
+
+      listEl.querySelectorAll('.qty-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const idx = Number(btn.dataset.i);
+          bag[idx].qty += Number(btn.dataset.d);
+          if (bag[idx].qty <= 0) bag.splice(idx, 1);
+          renderBag();
+        });
+      });
+    }
+    renderBag();
+
+    document.querySelectorAll('[data-add-item]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.addItem;
+        const found = CATALOG.find((c) => c.id === key) || EXTRA_ITEMS[key];
+        if (found) addToBag(found);
+      });
+    });
+
+    document.getElementById('holo-add-btn').addEventListener('click', () => addToBag(activeProduct));
+    document.getElementById('holo-checkout-btn').addEventListener('click', () => {
+      addToBag(activeProduct);
+      openBag();
+    });
+
+    document.getElementById('submit-order-btn').addEventListener('click', () => {
+      if (!bag.length) return showToast('ابتدا حداقل یک سرویس به سبد اضافه کنید');
+      const contact = document.getElementById('order-contact').value.trim();
+      if (!contact) {
+        document.getElementById('order-contact').focus();
+        return showToast('لطفاً شماره تماس، ایمیل یا آیدی تلگرام خود را وارد کنید');
+      }
+      bag.length = 0;
+      renderBag();
+      closeBag();
+      showToast('پیش‌سفارش نمونه ثبت شد (این نسخه صرفاً پروتوتایپ بصری است)');
+    });
+
+    // Service Request Modal
+    const reqModal = document.getElementById('request-modal');
+    document.querySelectorAll('[data-request]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.getElementById('request-modal-title').textContent = btn.dataset.request;
+        reqModal.classList.add('open');
+      });
+    });
+    document.getElementById('close-request-modal').addEventListener('click', () => reqModal.classList.remove('open'));
+    reqModal.addEventListener('click', (e) => { if (e.target === reqModal) reqModal.classList.remove('open'); });
+    document.getElementById('request-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      reqModal.classList.remove('open');
+      e.target.reset();
+      showToast('درخواست مشاوره نمونه با موفقیت ثبت شد');
+    });
+
+    // Official Reference Mascot (.glb) Loader Modal
+    const refModal = document.getElementById('ref-modal');
+    document.getElementById('open-ref-modal').addEventListener('click', () => refModal.classList.add('open'));
+    document.getElementById('close-ref-modal').addEventListener('click', () => refModal.classList.remove('open'));
+    document.getElementById('done-ref-modal').addEventListener('click', () => refModal.classList.remove('open'));
+    refModal.addEventListener('click', (e) => { if (e.target === refModal) refModal.classList.remove('open'); });
+
+    document.getElementById('glb-file-input').addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const blobUrl = URL.createObjectURL(file);
+      try {
+        showToast('در حال بارگذاری مدل رسمی MR.ROBOT...');
+        await mrRobot.loadOfficialReferenceModel(blobUrl);
+        refModal.classList.remove('open');
+        showToast('مدل مرجع رسمی شما با موفقیت جایگزین و نورپردازی شد');
+      } catch (err) {
+        showToast('خطا در خواندن فایل سه‌بعدی — فرمت .glb معتبر انتخاب کنید');
+      }
+    });
+
+    document.getElementById('reset-default-char').addEventListener('click', () => {
+      mrRobot.clearCustomModel();
+      showToast('کاراکتر استودیویی پیش‌فرض فعال شد');
+    });
+
+    let toastTimer;
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+    }
+
+    /* =========================================================================
+       11. CINEMATIC PRELOADER SEQUENCE
+    ========================================================================= */
+    const fill = document.getElementById('preloader-fill');
+    const note = document.getElementById('preloader-note');
+    const pre = document.getElementById('preloader');
+    const steps = [
+      { p: 38, t: 'تولید بافت پارچه و نورپردازی استودیویی...' },
+      { p: 76, t: 'تنظیم دوربین سینمایی و لایه‌های عمق...' },
+      { p: 100, t: 'خوش آمدید به دنیای MR.ROBOT' }
+    ];
+    steps.forEach((s, i) => {
+      setTimeout(() => {
+        fill.style.width = s.p + '%';
+        note.textContent = s.t;
+        if (i === steps.length - 1) setTimeout(() => pre.classList.add('hidden'), 320);
+      }, 220 + i * 280);
+    });
+  </script>
+</body>
+</html>
+
+نکته مهم درباره مسکات رسمی MR.ROBOT (بند ۸)
+
+اگر تصویر مرجع یا فایل سه‌بعدی رسمی مسکات MR.ROBOT را در اختیار دارید، کافی است
+آن را ارسال کنید (تصویر برای تطبیق دقیق جزئیات بصری/ساخت نسخه لایه‌ای، یا فایل
+.glb برای بارگذاری مستقیم در دکمه «مدل مرجع GLB» در نوار بالا). در صورت ارائه
+تصویر مرجع، مرحله بعد می‌توانیم چهره/کلاه/هدفون و تناسبات کاراکتر را دقیقاً
+منطبق با همان طرح رسمی برند نهایی کنیم.

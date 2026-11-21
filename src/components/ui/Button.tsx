@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { motion, type MotionStyle } from 'framer-motion'
 import type { CSSProperties, ReactNode } from 'react'
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'outline'
@@ -58,7 +58,7 @@ export function Button({
       onClick={onClick}
       className={classes}
       aria-label={ariaLabel}
-      style={style}
+      style={style as MotionStyle | undefined}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
     >
