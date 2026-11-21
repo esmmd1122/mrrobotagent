@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useTransition } from 'react'
-import { Minus, Plus, ShoppingBag, Trash2, X, ArrowLeft } from 'lucide-react'
+import { AlertTriangle, Minus, Plus, ShoppingBag, Trash2, X, ArrowLeft } from 'lucide-react'
 import { goToCheckout } from '@/app/cart/actions'
 import { useCart } from '@/components/cart/CartProvider'
 import { formatStoreMoney } from '@/modules/commerce/money'
@@ -15,11 +15,13 @@ export function CartDrawer() {
   const {
     pricing,
     count,
+    staleCount,
     isLoading,
     drawerOpen,
     closeDrawer,
     updateQuantity,
     removeItem,
+    pruneUnavailable,
   } = useCart()
   const [checkoutPending, startCheckout] = useTransition()
 
@@ -66,6 +68,27 @@ export function CartDrawer() {
         </div>
 
         <div className="cinema-drawer-list">
+          {staleCount > 0 ? (
+            <div className="mb-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-100">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                <div className="space-y-2">
+                  <p>
+                    {toFaDigits(staleCount)} مورد ناموجود یا تغییر‌یافته در سبد شما وجود دارد و پیش از تسویه‌حساب باید حذف شود.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() => void pruneUnavailable()}
+                    className="rounded-lg border border-amber-400/50 bg-amber-500/20 px-3 py-1.5 font-semibold text-amber-50 hover:bg-amber-500/30 disabled:opacity-60"
+                  >
+                    حذف اقلام ناموجود
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           {!hasLines ? (
             <div className="flex flex-col items-center justify-center py-12 text-center text-[#7c92b8]">
               <ShoppingBag className="mb-3 h-10 w-10 text-[#38bdf8]/60" />
@@ -98,7 +121,10 @@ export function CartDrawer() {
                   {item.planTitle ? (
                     <span className="mt-0.5 block text-xs text-[#38bdf8]">{item.planTitle}</span>
                   ) : null}
-                  <span className="mt-1 block text-xs text-[#a8bad8]">
+                  <span className="mt-1 block text-xs text-[#a8bad8] tabular-nums">
+                    {formatStoreMoney(item.unitPrice, pricing.currency)} × {toFaDigits(item.quantity)}
+                  </span>
+                  <span className="mt-0.5 block text-xs font-semibold text-white/90 tabular-nums">
                     {formatStoreMoney(item.lineTotal, pricing.currency)}
                   </span>
                 </div>
@@ -118,7 +144,7 @@ export function CartDrawer() {
                   </span>
                   <button
                     type="button"
-                    disabled={isLoading}
+                    disabled={isLoading || item.quantity >= 99}
                     onClick={() => void updateQuantity(item.productId, item.quantity + 1, item.planId)}
                     className="cinema-qty-btn"
                     aria-label="افزایش تعداد"
@@ -151,14 +177,14 @@ export function CartDrawer() {
           <div className="flex flex-col gap-2">
             <button
               type="button"
-              disabled={!hasLines || isLoading || checkoutPending}
+              disabled={!hasLines || staleCount > 0 || isLoading || checkoutPending}
               onClick={() => {
                 startCheckout(async () => {
                   closeDrawer()
                   await goToCheckout()
                 })
               }}
-              className="cinema-btn cinema-btn-signature w-full"
+              className="cinema-btn cinema-btn-signature w-full disabled:cursor-not-allowed disabled:opacity-45"
             >
               <span>{checkoutPending ? 'در حال انتقال به تسویه...' : 'ادامه و تسویه حساب'}</span>
               <ArrowLeft className="h-4 w-4" />

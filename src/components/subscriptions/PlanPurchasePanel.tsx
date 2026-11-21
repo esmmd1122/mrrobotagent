@@ -6,6 +6,7 @@ import { effectiveUnitPrice } from '@/modules/commerce/unit-price'
 import { formatStoreMoney } from '@/modules/commerce/money'
 import { formatPlanDuration } from '@/modules/commerce/plan-labels'
 import { addToCart } from '@/app/cart/actions'
+import { useOptionalCart } from '@/components/cart/CartProvider'
 
 export type StorePlan = {
   id: string
@@ -20,6 +21,7 @@ export type StorePlan = {
 
 type Props = {
   productId: string
+  productName?: string
   productSlug: string
   plansEnabled: boolean
   legacyPrice: number | null
@@ -29,6 +31,7 @@ type Props = {
 
 export function PlanPurchasePanel({
   productId,
+  productName,
   productSlug,
   plansEnabled,
   legacyPrice,
@@ -38,6 +41,8 @@ export function PlanPurchasePanel({
   const defaultPlanId = plans.find((p) => p.isFeatured)?.id ?? plans[0]?.id ?? ''
   const [planId, setPlanId] = useState(defaultPlanId)
   const [pending, start] = useTransition()
+  const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+  const cart = useOptionalCart()
 
   const selected = useMemo(() => plans.find((p) => p.id === planId), [plans, planId])
 
@@ -50,8 +55,39 @@ export function PlanPurchasePanel({
   const list = plansEnabled && selected ? selected.price : legacyPrice
 
   function buyHref() {
-    const q = planId ? `?planId=${encodeURIComponent(planId)}` : ''
+    const q = plansEnabled && planId ? `?planId=${encodeURIComponent(planId)}` : ''
     return `/subscriptions/${productSlug}/buy${q}`
+  }
+
+  function handleAddToCart() {
+    setFeedback(null)
+    const targetPlanId = plansEnabled ? planId : null
+    const label = selected && productName
+      ? `${productName} — ${selected.title}`
+      : productName
+
+    start(async () => {
+      if (cart) {
+        const res = await cart.addItem(productId, 1, targetPlanId, { label })
+        if (res.ok) {
+          setFeedback({
+            kind: 'ok',
+            text: selected
+              ? `طرح «${selected.title}» با موفقیت به سبد خرید اضافه شد.`
+              : 'محصول با موفقیت به سبد خرید اضافه شد.',
+          })
+        } else {
+          setFeedback({ kind: 'err', text: res.error || 'افزودن به سبد خرید ناموفق بود.' })
+        }
+        return
+      }
+      const res = await addToCart(productId, 1, targetPlanId)
+      if (res.ok) {
+        setFeedback({ kind: 'ok', text: 'محصول با موفقیت به سبد خرید اضافه شد.' })
+      } else {
+        setFeedback({ kind: 'err', text: res.error })
+      }
+    })
   }
 
   if (plansEnabled && plans.length === 0) {
@@ -77,20 +113,27 @@ export function PlanPurchasePanel({
                   name="plan"
                   className="sr-only"
                   checked={active}
-                  onChange={() => setPlanId(p.id)}
+                  onChange={() => {
+                    setPlanId(p.id)
+                    setFeedback(null)
+                  }}
                 />
-                <div className="flex items-start justify-between gap-3">
-                  <div>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
                     <p className="font-semibold">
                       {p.title}
                       {p.isFeatured ? (
-                        <span className="mr-2 rounded bg-mr-red/20 px-2 py-0.5 text-xs text-mr-red">پیشنهادی</span>
+                        <span className="mr-2 rounded bg-mr-red/20 px-2 py-0.5 text-xs text-mr-red">
+                          پیشنهادی
+                        </span>
                       ) : null}
                     </p>
-                    <p className="mt-1 text-xs text-mr-muted">{formatPlanDuration(p.durationValue, p.durationUnit)}</p>
+                    <p className="mt-1 text-xs text-mr-muted">
+                      {formatPlanDuration(p.durationValue, p.durationUnit)}
+                    </p>
                     {p.description ? <p className="mt-2 text-sm text-white/75">{p.description}</p> : null}
                   </div>
-                  <div className="text-left" dir="ltr">
+                  <div className="shrink-0 text-left" dir="ltr">
                     <p className="font-bold tabular-nums">{u != null ? formatStoreMoney(u) : '—'}</p>
                     {p.promoPrice != null && p.promoPrice < p.price ? (
                       <p className="text-xs text-mr-muted line-through">{formatStoreMoney(p.price)}</p>
@@ -118,25 +161,51 @@ export function PlanPurchasePanel({
           <>
             <Link
               href={buyHref()}
-              className="inline-flex justify-center rounded-xl bg-mr-red px-5 py-3 text-sm font-semibold text-white"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-mr-red px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110"
             >
               خرید اشتراک
             </Link>
             <button
               type="button"
-              disabled={pending || (plansEnabled && !planId)}
-              onClick={() => start(() => addToCart(productId, 1, plansEnabled ? planId : undefined))}
-              className="rounded-xl border border-mr-border px-5 py-3 text-sm font-semibold disabled:opacity-60"
+              disabled={pending || Boolean(cart?.isLoading) || (plansEnabled && !planId)}
+              onClick={handleAddToCart}
+              className="min-h-[44px] rounded-xl border border-mr-border px-5 py-3 text-sm font-semibold transition hover:bg-white/5 disabled:opacity-60"
             >
-              {pending ? '...' : 'افزودن به سبد'}
+              {pending ? 'در حال افزودن...' : 'افزودن به سبد'}
             </button>
           </>
         ) : (
-          <Link href={`/contact?subject=${encodeURIComponent('خرید اشتراک')}`} className="text-mr-red underline">
+          <Link
+            href={`/contact?subject=${encodeURIComponent(`خرید ${productName || 'اشتراک'}`)}`}
+            className="text-mr-red underline"
+          >
             تماس برای خرید
           </Link>
         )}
       </div>
+
+      {feedback ? (
+        <div
+          role="status"
+          className={`rounded-xl border px-4 py-3 text-sm ${
+            feedback.kind === 'ok'
+              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100'
+              : 'border-red-500/40 bg-red-500/10 text-red-200'
+          }`}
+        >
+          <p>{feedback.text}</p>
+          {feedback.kind === 'ok' ? (
+            <div className="mt-2 flex flex-wrap gap-3 text-xs">
+              <Link href="/cart" className="font-semibold text-emerald-200 underline">
+                مشاهده سبد خرید
+              </Link>
+              <Link href="/checkout" className="font-semibold text-white underline">
+                ادامه تسویه‌حساب
+              </Link>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -321,21 +321,16 @@ export function SubscriptionsSection({
                           <ShoppingBag className="h-4 w-4" />
                           <span>افزودن به سبد سفارش</span>
                         </button>
-                        <button
-                          type="button"
-                          disabled={isLoading}
-                          onClick={() =>
-                            void addItem(activeProduct.id, 1, activePriceInfo.planId, {
-                              label: activePlan
-                                ? `${activeProduct.name} — ${activePlan.title}`
-                                : activeProduct.name,
-                              openAfterAdd: true,
-                            })
-                          }
+                        <Link
+                          href={`/subscriptions/${activeProduct.slug}/buy${
+                            activePriceInfo.planId
+                              ? `?planId=${encodeURIComponent(activePriceInfo.planId)}`
+                              : ''
+                          }`}
                           className="cinema-btn cinema-btn-signature"
                         >
-                          ثبت سریع سفارش
-                        </button>
+                          خرید فوری
+                        </Link>
                       </>
                     ) : (
                       <button

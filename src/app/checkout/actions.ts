@@ -8,40 +8,39 @@ import { createOrderFromCart } from '@/modules/commerce/create-order'
 import { getCustomerSession } from '@/lib/customer-auth/session'
 import { resolveAppOrigin } from '@/modules/commerce/app-origin'
 import { redirectAfterOrderPayment } from '@/modules/commerce/redirect-to-payment'
+import { validateCheckoutContact } from '@/modules/commerce/error-messages'
 
-const schema = z.object({
-  name: z.string().min(2).max(120),
-  email: z.union([z.literal(''), z.string().email()]),
-  phone: z.string().max(20),
-  discountCode: z.string().max(32).optional(),
-  termsAccepted: z.literal('on'),
-  idempotencyKey: z.string().uuid(),
-})
+const uuidSchema = z.string().uuid()
 
 export async function submitCheckout(formData: FormData) {
-  const parsed = schema.safeParse({
-    name: formData.get('name'),
-    email: formData.get('email') || '',
-    phone: formData.get('phone') || '',
-    discountCode: formData.get('discountCode') || '',
-    termsAccepted: formData.get('termsAccepted'),
-    idempotencyKey: formData.get('idempotencyKey'),
+  const idempotencyKey = String(formData.get('idempotencyKey') || '')
+  if (!uuidSchema.safeParse(idempotencyKey).success) {
+    redirect(`/checkout?error=${encodeURIComponent('شناسه درخواست نامعتبر است. لطفاً صفحه را بازنشانی کنید.')}`)
+  }
+
+  const customerSession = await getCustomerSession()
+  const contact = validateCheckoutContact({
+    name: String(formData.get('name') || ''),
+    email: String(formData.get('email') || ''),
+    phone: String(formData.get('phone') || ''),
+    discountCode: String(formData.get('discountCode') || ''),
+    termsAccepted: formData.get('termsAccepted') === 'on',
+    fallbackEmail: customerSession?.email,
   })
 
-  if (!parsed.success) {
-    redirect('/checkout?error=invalid')
+  if (!contact.ok) {
+    redirect(`/checkout?error=${encodeURIComponent(contact.error)}`)
   }
 
   const lines = await readCart()
-  const customerSession = await getCustomerSession()
   const result = await createOrderFromCart({
     lines,
-    name: parsed.data.name,
-    email: parsed.data.email || customerSession?.email || null,
-    phone: parsed.data.phone || null,
-    discountCode: parsed.data.discountCode || null,
+    name: contact.name,
+    email: contact.email || customerSession?.email || null,
+    phone: contact.phone || null,
+    discountCode: contact.discountCode || null,
     termsAccepted: true,
-    idempotencyKey: parsed.data.idempotencyKey,
+    idempotencyKey,
     loggedInCustomerId: customerSession?.sub,
   })
 

@@ -35,3 +35,28 @@ export async function selectEnabledProvider(appOrigin: string): Promise<{
   }
   return null
 }
+
+export type PaymentGatewayAvailability = {
+  available: boolean
+  providerId: PaymentProviderId | null
+}
+
+/**
+ * Checks if any enabled payment gateway is currently usable for online redirects.
+ * Sandbox is strictly blocked in production; Zarinpal requires live API integration + credentials.
+ */
+export async function getPaymentGatewayAvailability(): Promise<PaymentGatewayAvailability> {
+  const configs = await prisma.paymentGatewayConfig.findMany({
+    where: { isEnabled: true },
+    orderBy: { updatedAt: 'desc' },
+  })
+
+  for (const cfg of configs) {
+    if (cfg.provider === 'sandbox' && isPaymentSandboxAllowed()) {
+      return { available: true, providerId: 'sandbox' }
+    }
+    // Zarinpal provider is preserved as architecture-ready; live API is not yet enabled.
+  }
+
+  return { available: false, providerId: null }
+}

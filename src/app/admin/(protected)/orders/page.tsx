@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { PERMISSIONS, ORDER_STATUS_LABELS } from '@/lib/auth/constants'
 import { FULFILLMENT_STATUS_LABELS } from '@/modules/fulfillment/labels'
+import { paymentStatusLabelFa } from '@/modules/payment/labels'
+import { formatStoreMoney } from '@/modules/commerce/pricing'
 
 export default async function AdminOrdersPage({
   searchParams,
@@ -84,11 +86,11 @@ export default async function AdminOrdersPage({
             </option>
           ))}
         </select>
-        <select name="paymentStatus" defaultValue={paymentStatus} className="admin-input max-w-[140px]">
-          <option value="">پرداخت</option>
+        <select name="paymentStatus" defaultValue={paymentStatus} className="admin-input max-w-[160px]">
+          <option value="">وضعیت پرداخت</option>
           {['UNPAID', 'PAID', 'FAILED', 'REFUNDED'].map((s) => (
             <option key={s} value={s}>
-              {s}
+              {paymentStatusLabelFa(s)}
             </option>
           ))}
         </select>
@@ -119,15 +121,15 @@ export default async function AdminOrdersPage({
             {orders.map((o) => (
               <tr key={o.id}>
                 <td>
-                  <Link href={`/admin/orders/${o.id}`} className="text-[#e10600]">
+                  <Link href={`/admin/orders/${o.id}`} className="font-mono text-[#e10600]" dir="ltr">
                     {o.orderNumber}
                   </Link>
                 </td>
                 <td>{o.customer.name}</td>
                 <td>{ORDER_STATUS_LABELS[o.status] || o.status}</td>
-                <td>{o.paymentStatus}</td>
+                <td>{paymentStatusLabelFa(o.paymentStatus)}</td>
                 <td>{FULFILLMENT_STATUS_LABELS[o.fulfillmentStatus] || o.fulfillmentStatus}</td>
-                <td>{o.totalAmount.toLocaleString('fa-IR')}</td>
+                <td className="tabular-nums">{formatStoreMoney(o.totalAmount, o.currency)}</td>
                 <td>{new Date(o.createdAt).toLocaleDateString('fa-IR')}</td>
               </tr>
             ))}

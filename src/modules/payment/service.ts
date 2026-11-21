@@ -147,6 +147,12 @@ export async function handleProviderCallback(
   body: unknown,
   searchParams: URLSearchParams,
 ) {
+  if (providerId === 'sandbox') {
+    const { isPaymentSandboxAllowed } = await import('./environment')
+    if (!isPaymentSandboxAllowed()) {
+      return { ok: false, code: 'SANDBOX_DISABLED', message: 'درگاه آزمایشی در این محیط غیرفعال است.' }
+    }
+  }
   const provider = await resolvePaymentProvider(providerId, appOrigin)
   const payload = provider.parseCallback(body, searchParams)
   const paymentId = String(payload.paymentId || payload.payment_id || '')

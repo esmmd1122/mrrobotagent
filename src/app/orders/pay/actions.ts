@@ -7,7 +7,7 @@ import { getCustomerSession } from '@/lib/customer-auth/session'
 import { prisma } from '@/lib/db'
 import { verifyAndApplyPayment } from '@/modules/payment/service'
 import { isPaymentSandboxAllowed } from '@/modules/payment/environment'
-import { headers } from 'next/headers'
+import { resolveAppOrigin } from '@/modules/commerce/app-origin'
 
 const schema = z.object({
   paymentId: z.string().uuid(),
@@ -19,13 +19,7 @@ const schema = z.object({
 })
 
 function appOriginFromHeaders() {
-  const h = headers()
-  return (async () => {
-    const hdrs = await h
-    const host = hdrs.get('x-forwarded-host') || hdrs.get('host')
-    const proto = hdrs.get('x-forwarded-proto') || 'http'
-    return host ? `${proto}://${host}` : 'http://localhost:3000'
-  })()
+  return resolveAppOrigin()
 }
 
 export async function confirmSandboxPayment(formData: FormData) {

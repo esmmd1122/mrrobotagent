@@ -5,10 +5,14 @@ import { ProductLogo } from '@/components/ui/ProductLogo'
 import { Button } from '@/components/ui/Button'
 import { PlanPurchasePanel } from '@/components/subscriptions/PlanPurchasePanel'
 import { isProductPurchasable } from '@/modules/commerce/product-pricing'
+import { resolveStorefrontErrorMessage } from '@/modules/commerce/error-messages'
 
-type Props = { params: Promise<{ slug: string }> }
+type Props = {
+  params: Promise<{ slug: string }>
+  searchParams: Promise<{ error?: string }>
+}
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params
   const product = await getProductBySlugFromDb(slug)
   if (!product) return { title: 'اشتراک' }
@@ -18,8 +22,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function SubscriptionDetailPage({ params }: Props) {
+export default async function SubscriptionDetailPage({ params, searchParams }: Props) {
   const { slug } = await params
+  const { error: rawError } = await searchParams
+  const errorMessage = resolveStorefrontErrorMessage(rawError)
   const product = await getProductBySlugFromDb(slug)
   if (!product) notFound()
 
@@ -47,15 +53,21 @@ export default async function SubscriptionDetailPage({ params }: Props) {
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-4">
           <ProductLogo slug={product.slug as 'chatgpt-plus' | 'capcut-pro' | 'grok' | 'gemini-pro'} />
-          <div>
-            <h1 className="text-3xl font-bold" dir="ltr">
+          <div className="min-w-0">
+            <h1 className="break-words text-3xl font-bold" dir="ltr">
               {product.nameEn || product.nameFa}
             </h1>
             <p className="mt-1 text-mr-muted">{product.description}</p>
           </div>
         </div>
 
-        <section className="card-shop mt-10 space-y-6 p-8">
+        {errorMessage ? (
+          <p className="mt-6 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            {errorMessage}
+          </p>
+        ) : null}
+
+        <section className="card-shop mt-10 space-y-6 p-6 sm:p-8">
           <div>
             <h2 className="font-semibold">جزئیات اشتراک</h2>
             <ul className="mt-3 space-y-2 text-sm text-white/90">
@@ -76,6 +88,7 @@ export default async function SubscriptionDetailPage({ params }: Props) {
             {purchasable ? (
               <PlanPurchasePanel
                 productId={product.id}
+                productName={product.nameFa}
                 productSlug={product.slug}
                 plansEnabled={product.plansEnabled}
                 legacyPrice={product.price}

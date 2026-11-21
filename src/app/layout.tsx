@@ -73,6 +73,7 @@ export default async function RootLayout({
     currency: STORE_CURRENCY_CODE,
   }
   let cartCount = 0
+  let staleCount = 0
 
   if (!bare) {
     try {
@@ -80,9 +81,11 @@ export default async function RootLayout({
       if (lines.length > 0) {
         initialPricing = await calculateCartPricing(lines)
         cartCount = initialPricing.lines.reduce((sum, item) => sum + item.quantity, 0)
+        staleCount = Math.max(0, lines.length - initialPricing.lines.length)
       }
     } catch {
       cartCount = 0
+      staleCount = 0
     }
   }
 
@@ -96,7 +99,11 @@ export default async function RootLayout({
     >
       <body className="min-h-screen flex flex-col">
         <SiteThemeStyles theme={site.theme} />
-        <CartProvider initialPricing={initialPricing} initialCount={cartCount}>
+        <CartProvider
+          initialPricing={initialPricing}
+          initialCount={cartCount}
+          initialStaleCount={staleCount}
+        >
           {!bare && (
             <>
               <Navbar

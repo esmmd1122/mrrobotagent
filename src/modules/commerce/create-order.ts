@@ -55,12 +55,12 @@ export async function createOrderFromCart(input: CreateOrderInput): Promise<Crea
   }
   const pricing = checkoutPricing.pricing
 
-  const discountCheck = await validateDiscountCode(
-    input.discountCode,
-    pricing.lines,
-    pricing.subtotal,
-  )
-  if (input.discountCode?.trim() && !discountCheck.code) {
+  if (input.discountCode?.trim() && !pricing.discountCode) {
+    const discountCheck = await validateDiscountCode(
+      input.discountCode,
+      pricing.lines,
+      pricing.subtotal,
+    )
     return { ok: false, error: discountCheck.error || 'کد تخفیف نامعتبر است.' }
   }
 
@@ -69,6 +69,7 @@ export async function createOrderFromCart(input: CreateOrderInput): Promise<Crea
   const orderNumber = generateOrderNumber()
   const email = input.email?.trim().toLowerCase() || null
   const phone = input.phone?.trim() || null
+  const trimmedName = input.name.trim()
 
   try {
     const order = await prisma.$transaction(async (tx) => {
@@ -85,7 +86,7 @@ export async function createOrderFromCart(input: CreateOrderInput): Promise<Crea
         customer = await tx.customer.update({
           where: { id: customer.id },
           data: {
-            name: input.name.trim(),
+            name: trimmedName,
             email: email || customer.email,
             phone: phone || customer.phone,
           },
@@ -98,17 +99,20 @@ export async function createOrderFromCart(input: CreateOrderInput): Promise<Crea
         })
         if (!customer) {
           customer = await tx.customer.create({
-            data: { name: input.name.trim(), email, phone, status: 'ACTIVE' },
+            data: { name: trimmedName, email, phone, status: 'ACTIVE' },
           })
-        } else if (customer.name !== input.name.trim()) {
-          customer = await tx.customer.update({
-            where: { id: customer.id },
-            data: {
-              name: input.name.trim(),
-              email: email || customer.email,
-              phone: phone || customer.phone,
-            },
-          })
+        } else if (!customer.passwordHash) {
+          // Only backfill missing contact fields on unauthenticated guest records;
+          // never overwrite a registered customer account's profile from guest checkout.
+          const updateData: { email?: string; phone?: string } = {}
+          if (!customer.email && email) updateData.email = email
+          if (!customer.phone && phone) updateData.phone = phone
+          if (Object.keys(updateData).length > 0) {
+            customer = await tx.customer.update({
+              where: { id: customer.id },
+              data: updateData,
+            })
+          }
         }
       }
 
@@ -121,16 +125,24 @@ export async function createOrderFromCart(input: CreateOrderInput): Promise<Crea
         throw new Error('PRICE_INTEGRITY')
       }
 
-      if (discountCheck.code) {
-        const disc = await tx.discountCode.findUnique({ where: { code: discountCheck.code } })
-        if (!disc?.isActive) throw new Error('DISCOUNT_INVALID')
-        if (disc.usageLimit != null && disc.usageCount >= disc.usageLimit) {
-          throw new Error('DISCOUNT_EXHAUSTED')
-        }
-        await tx.discountCode.update({
-          where: { id: disc.id },
+      if (pricing.discountCode) {
+        const now = new Date()
+        const disc = await tx.discountCode.findUnique({ where: { code: pricing.discountCode } })
+        if (!disc || !disc.isActive) throw new Error('DISCOUNT_INVALID')
+        if (disc.startsAt && disc.startsAt > now) throw new Error('DISCOUNT_INVALID')
+        if (disc.expiresAt && disc.expiresAt < now) throw new Error('DISCOUNT_INVALID')
+
+        const updated = await tx.discountCode.updateMany({
+          where: {
+            id: disc.id,
+            isActive: true,
+            ...(disc.usageLimit != null ? { usageCount: { lt: disc.usageLimit } } : {}),
+          },
           data: { usageCount: { increment: 1 } },
         })
+        if (updated.count === 0) {
+          throw new Error('DISCOUNT_EXHAUSTED')
+        }
       }
 
       const created = await tx.order.create({
@@ -143,7 +155,7 @@ export async function createOrderFromCart(input: CreateOrderInput): Promise<Crea
           discountAmount: pricing.discountAmount,
           totalAmount: expectedTotal,
           currency: pricing.currency,
-          discountCode: discountCheck.code,
+          discountCode: pricing.discountCode,
           termsAcceptedAt: new Date(),
           idempotencyKey: input.idempotencyKey,
           customerViewTokenHash: viewTokenHash,
@@ -179,14 +191,21 @@ export async function createOrderFromCart(input: CreateOrderInput): Promise<Crea
       return created
     })
 
-    const copy = copyForNotificationType('ORDER_REGISTERED', order.orderNumber)
-    await notifyCustomer({
-      customerId: order.customerId,
-      orderId: order.id,
-      type: 'ORDER_REGISTERED',
-      title: copy.title,
-      body: copy.body,
-    })
+    try {
+      const copy = copyForNotificationType('ORDER_REGISTERED', order.orderNumber)
+      await notifyCustomer({
+        customerId: order.customerId,
+        orderId: order.id,
+        type: 'ORDER_REGISTERED',
+        title: copy.title,
+        body: copy.body,
+      })
+    } catch (notifyErr) {
+      console.error(
+        'Order registered notification failed:',
+        notifyErr instanceof Error ? notifyErr.message : 'unknown',
+      )
+    }
 
     return {
       ok: true,
@@ -201,14 +220,17 @@ export async function createOrderFromCart(input: CreateOrderInput): Promise<Crea
     if (e instanceof Error && e.message === 'EMAIL_MISMATCH') {
       return { ok: false, error: 'ایمیل وارد شده با حساب کاربری شما همخوانی ندارد.' }
     }
+    if (e instanceof Error && e.message === 'DISCOUNT_INVALID') {
+      return { ok: false, error: 'کد تخفیف معتبر نیست یا منقضی شده است.' }
+    }
     if (e instanceof Error && e.message === 'DISCOUNT_EXHAUSTED') {
-      return { ok: false, error: 'کد تخفیف دیگر قابل استفاده نیست.' }
+      return { ok: false, error: 'سقف استفاده از این کد تخفیف تکمیل شده است.' }
     }
     if (e instanceof Error && e.message === 'PRICE_INTEGRITY') {
       return { ok: false, error: 'خطای یکپارچگی قیمت. لطفاً دوباره تلاش کنید.' }
     }
     if (e && typeof e === 'object' && 'code' in e && (e as { code: string }).code === 'P2002') {
-      return { ok: false, error: 'این درخواست قبلاً ثبت شده است.' }
+      return { ok: false, error: 'این درخواست قبلاً ثبت شده است. لطفاً از بخش پیگیری سفارش بررسی کنید.' }
     }
     throw e
   }

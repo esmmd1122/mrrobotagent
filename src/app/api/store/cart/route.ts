@@ -10,14 +10,16 @@ export async function GET() {
     const lines = await readCart()
     const pricing = await calculateCartPricing(lines)
     const count = pricing.lines.reduce((sum, item) => sum + item.quantity, 0)
+    const staleCount = Math.max(0, lines.length - pricing.lines.length)
     return NextResponse.json(
-      { count, pricing },
+      { count, staleCount, pricing },
       { headers: { 'Cache-Control': 'no-store' } },
     )
   } catch {
     return NextResponse.json(
       {
         count: 0,
+        staleCount: 0,
         pricing: {
           lines: [],
           subtotal: 0,

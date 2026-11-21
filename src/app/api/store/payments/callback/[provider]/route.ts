@@ -1,14 +1,24 @@
 import { NextResponse } from 'next/server'
+import { sanitizeAppOrigin } from '@/modules/commerce/origin-safety'
 import { handleProviderCallback } from '@/modules/payment/service'
 import type { PaymentProviderId } from '@/modules/payment/types'
 
 const ALLOWED: PaymentProviderId[] = ['sandbox', 'zarinpal']
 
 function appOrigin(req: Request) {
-  const host = req.headers.get('x-forwarded-host') || req.headers.get('host')
-  const proto = req.headers.get('x-forwarded-proto') || 'http'
-  if (host) return `${proto}://${host}`
-  return new URL(req.url).origin
+  let fallbackOrigin: string | undefined
+  try {
+    fallbackOrigin = new URL(req.url).origin
+  } catch {
+    fallbackOrigin = undefined
+  }
+  return sanitizeAppOrigin({
+    forwardedProto: req.headers.get('x-forwarded-proto'),
+    forwardedHost: req.headers.get('x-forwarded-host'),
+    host: req.headers.get('host'),
+    envAppUrl: process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL,
+    fallbackOrigin,
+  })
 }
 
 type RouteContext = { params: Promise<{ provider: string }> }

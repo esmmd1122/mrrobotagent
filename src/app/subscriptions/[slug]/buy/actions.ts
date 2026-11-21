@@ -10,20 +10,21 @@ import { isProductPurchasable } from '@/modules/commerce/product-pricing'
 import { parseProductPurchaseFields, validatePurchaseFieldAnswers } from '@/modules/commerce/purchase-fields'
 import { resolveAppOrigin } from '@/modules/commerce/app-origin'
 import { redirectAfterOrderPayment } from '@/modules/commerce/redirect-to-payment'
+import { validateCheckoutContact } from '@/modules/commerce/error-messages'
 
-const baseSchema = z.object({
-  name: z.string().min(2).max(120),
-  email: z.union([z.literal(''), z.string().email()]),
-  phone: z.string().max(20),
-  discountCode: z.string().max(32).optional(),
-  termsAccepted: z.literal('on'),
-  idempotencyKey: z.string().uuid(),
-  planId: z.string().uuid().optional(),
-})
+const uuidSchema = z.string().uuid()
+
+function buyErrorRedirect(slug: string, error: string, planId?: string | null): never {
+  const qs = new URLSearchParams({ error })
+  if (planId) qs.set('planId', planId)
+  redirect(`/subscriptions/${slug}/buy?${qs.toString()}`)
+}
 
 export async function submitSubscriptionCheckout(slug: string, formData: FormData) {
   const product = await getProductBySlugFromDb(slug)
   if (!product) notFound()
+
+  const rawPlanId = String(formData.get('planId') || '').trim() || undefined
 
   if (
     !isProductPurchasable({
@@ -41,47 +42,50 @@ export async function submitSubscriptionCheckout(slug: string, formData: FormDat
   const fieldDefs = parseProductPurchaseFields(product.purchaseFieldsJson ?? '[]')
   const fieldsCheck = validatePurchaseFieldAnswers(fieldDefs, formData)
   if (!fieldsCheck.ok) {
-    redirect(`/subscriptions/${slug}/buy?error=${encodeURIComponent(fieldsCheck.error)}`)
+    buyErrorRedirect(slug, fieldsCheck.error, rawPlanId)
   }
 
-  const parsed = baseSchema.safeParse({
-    name: formData.get('name'),
-    email: formData.get('email') || '',
-    phone: formData.get('phone') || '',
-    discountCode: formData.get('discountCode') || '',
-    termsAccepted: formData.get('termsAccepted'),
-    idempotencyKey: formData.get('idempotencyKey'),
-    planId: formData.get('planId') || undefined,
-  })
-
-  if (!parsed.success) {
-    redirect(`/subscriptions/${slug}/buy?error=invalid`)
+  const idempotencyKey = String(formData.get('idempotencyKey') || '')
+  if (!uuidSchema.safeParse(idempotencyKey).success) {
+    buyErrorRedirect(slug, 'شناسه درخواست نامعتبر است. لطفاً صفحه را بازنشانی کنید.', rawPlanId)
   }
 
   const customerSession = await getCustomerSession()
+  const contact = validateCheckoutContact({
+    name: String(formData.get('name') || ''),
+    email: String(formData.get('email') || ''),
+    phone: String(formData.get('phone') || ''),
+    discountCode: String(formData.get('discountCode') || ''),
+    termsAccepted: formData.get('termsAccepted') === 'on',
+    fallbackEmail: customerSession?.email,
+  })
+
+  if (!contact.ok) {
+    buyErrorRedirect(slug, contact.error, rawPlanId)
+  }
+
   if (product.plansEnabled) {
-    const pid = parsed.data.planId
-    if (!pid || !product.plans.some((p) => p.id === pid)) {
-      redirect(`/subscriptions/${slug}/buy?error=${encodeURIComponent('طرح انتخاب‌شده نامعتبر است.')}`)
+    if (!rawPlanId || !uuidSchema.safeParse(rawPlanId).success || !product.plans.some((p) => p.id === rawPlanId)) {
+      buyErrorRedirect(slug, 'طرح انتخاب‌شده نامعتبر است.')
     }
-  } else if (parsed.data.planId) {
-    redirect(`/subscriptions/${slug}/buy?error=invalid_plan`)
+  } else if (rawPlanId) {
+    buyErrorRedirect(slug, 'طرح انتخاب‌شده برای این محصول معتبر نیست.')
   }
 
   const result = await createOrderFromCart({
-    lines: [{ productId: product.id, planId: parsed.data.planId ?? null, quantity: 1 }],
-    name: parsed.data.name,
-    email: parsed.data.email || customerSession?.email || null,
-    phone: parsed.data.phone || null,
-    discountCode: parsed.data.discountCode || null,
+    lines: [{ productId: product.id, planId: rawPlanId ?? null, quantity: 1 }],
+    name: contact.name,
+    email: contact.email || customerSession?.email || null,
+    phone: contact.phone || null,
+    discountCode: contact.discountCode || null,
     termsAccepted: true,
-    idempotencyKey: parsed.data.idempotencyKey,
+    idempotencyKey,
     loggedInCustomerId: customerSession?.sub,
     customerPurchaseInfo: fieldsCheck.deliveryInfo || null,
   })
 
   if (!result.ok) {
-    redirect(`/subscriptions/${slug}/buy?error=${encodeURIComponent(result.error)}`)
+    buyErrorRedirect(slug, result.error, rawPlanId)
   }
 
   const origin = await resolveAppOrigin()

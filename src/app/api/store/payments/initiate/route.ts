@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getCustomerSession } from '@/lib/customer-auth/session'
+import { sanitizeAppOrigin } from '@/modules/commerce/origin-safety'
 import { initiatePaymentForCustomerSession, initiatePaymentForOrder } from '@/modules/payment/service'
 
 const bodySchema = z.object({
@@ -10,10 +11,19 @@ const bodySchema = z.object({
 })
 
 function appOrigin(req: Request) {
-  const host = req.headers.get('x-forwarded-host') || req.headers.get('host')
-  const proto = req.headers.get('x-forwarded-proto') || 'http'
-  if (host) return `${proto}://${host}`
-  return new URL(req.url).origin
+  let fallbackOrigin: string | undefined
+  try {
+    fallbackOrigin = new URL(req.url).origin
+  } catch {
+    fallbackOrigin = undefined
+  }
+  return sanitizeAppOrigin({
+    forwardedProto: req.headers.get('x-forwarded-proto'),
+    forwardedHost: req.headers.get('x-forwarded-host'),
+    host: req.headers.get('host'),
+    envAppUrl: process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL,
+    fallbackOrigin,
+  })
 }
 
 export async function POST(req: Request) {
@@ -64,7 +74,7 @@ export async function POST(req: Request) {
       provider: result.provider,
     })
   } catch (error) {
-    console.error(error)
+    console.error('Payment initiate error:', error instanceof Error ? error.message : 'unknown')
     return NextResponse.json({ error: 'خطای سرور' }, { status: 500 })
   }
 }

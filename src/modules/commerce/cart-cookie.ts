@@ -26,14 +26,23 @@ export async function readCart(): Promise<CartLineInput[]> {
   return parseCart(jar.get(CART_COOKIE)?.value)
 }
 
+export const MAX_CART_LINES = 50
+
 export async function writeCart(lines: CartLineInput[]) {
   const jar = await cookies()
-  const normalized = cartSchema.safeParse(lines)
-  if (!normalized.success) {
+  const validLines: CartLineInput[] = []
+  for (const item of lines) {
+    const parsed = lineSchema.safeParse(item)
+    if (parsed.success) {
+      validLines.push(parsed.data)
+      if (validLines.length >= MAX_CART_LINES) break
+    }
+  }
+  if (validLines.length === 0) {
     jar.delete(CART_COOKIE)
     return
   }
-  jar.set(CART_COOKIE, JSON.stringify(normalized.data), {
+  jar.set(CART_COOKIE, JSON.stringify(validLines), {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',

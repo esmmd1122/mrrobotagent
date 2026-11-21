@@ -1,5 +1,6 @@
 'use client'
 
+import { usePathname } from 'next/navigation'
 import {
   createContext,
   useCallback,
@@ -9,7 +10,12 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { addToCart, removeFromCart, setCartQuantity } from '@/app/cart/actions'
+import {
+  addToCart,
+  pruneUnavailableCartItems,
+  removeFromCart,
+  setCartQuantity,
+} from '@/app/cart/actions'
 import type { CartPricing } from '@/modules/commerce/types'
 import { STORE_CURRENCY_CODE } from '@/modules/commerce/money'
 
@@ -21,9 +27,15 @@ export type CinemaNavBridge = {
   openGlbModal: () => void
 }
 
+type CartActionOutcome = {
+  ok: boolean
+  error?: string
+}
+
 type CartContextValue = {
   pricing: CartPricing
   count: number
+  staleCount: number
   isLoading: boolean
   drawerOpen: boolean
   openDrawer: () => void
@@ -35,9 +47,14 @@ type CartContextValue = {
     quantity?: number,
     planId?: string | null,
     options?: { label?: string; openAfterAdd?: boolean },
-  ) => Promise<void>
-  updateQuantity: (productId: string, quantity: number, planId?: string | null) => Promise<void>
-  removeItem: (productId: string, planId?: string | null) => Promise<void>
+  ) => Promise<CartActionOutcome>
+  updateQuantity: (
+    productId: string,
+    quantity: number,
+    planId?: string | null,
+  ) => Promise<CartActionOutcome>
+  removeItem: (productId: string, planId?: string | null) => Promise<CartActionOutcome>
+  pruneUnavailable: () => Promise<void>
   showToast: (message: string) => void
   cinemaBridge: CinemaNavBridge | null
   setCinemaBridge: (bridge: CinemaNavBridge | null) => void
@@ -57,22 +74,27 @@ const CartContext = createContext<CartContextValue | null>(null)
 export function CartProvider({
   initialPricing,
   initialCount,
+  initialStaleCount = 0,
   children,
 }: {
   initialPricing?: CartPricing
   initialCount?: number
+  initialStaleCount?: number
   children: ReactNode
 }) {
+  const pathname = usePathname()
   const [pricing, setPricing] = useState<CartPricing>(initialPricing ?? EMPTY_PRICING)
   const [count, setCount] = useState<number>(
     initialCount ?? (initialPricing?.lines.reduce((s, l) => s + l.quantity, 0) ?? 0),
   )
+  const [staleCount, setStaleCount] = useState<number>(initialStaleCount)
   const [isLoading, setIsLoading] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [toastMsg, setToastMsg] = useState('')
   const [toastVisible, setToastVisible] = useState(false)
   const [cinemaBridge, setCinemaBridge] = useState<CinemaNavBridge | null>(null)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const mountedPathRef = useRef<string>(pathname)
 
   const showToast = useCallback((message: string) => {
     setToastMsg(message)
@@ -80,7 +102,7 @@ export function CartProvider({
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
     toastTimerRef.current = setTimeout(() => {
       setToastVisible(false)
-    }, 3200)
+    }, 3400)
   }, [])
 
   useEffect(() => {
@@ -93,15 +115,28 @@ export function CartProvider({
     try {
       const res = await fetch('/api/store/cart', { cache: 'no-store' })
       if (!res.ok) return
-      const data = (await res.json()) as { count: number; pricing: CartPricing }
+      const data = (await res.json()) as {
+        count: number
+        staleCount?: number
+        pricing: CartPricing
+      }
       if (data?.pricing) {
         setPricing(data.pricing)
         setCount(typeof data.count === 'number' ? data.count : 0)
+        setStaleCount(typeof data.staleCount === 'number' ? data.staleCount : 0)
       }
     } catch {
       // Keep current cart snapshot if transient fetch fails
     }
   }, [])
+
+  // Keep Navbar badge & CartDrawer synchronized after server-side cookie changes (e.g. checkout clearCart)
+  useEffect(() => {
+    if (mountedPathRef.current !== pathname) {
+      mountedPathRef.current = pathname
+      void refreshCart()
+    }
+  }, [pathname, refreshCart])
 
   const addItem = useCallback(
     async (
@@ -109,11 +144,15 @@ export function CartProvider({
       quantity = 1,
       planId?: string | null,
       options?: { label?: string; openAfterAdd?: boolean },
-    ) => {
+    ): Promise<CartActionOutcome> => {
       setIsLoading(true)
       try {
-        await addToCart(productId, quantity, planId)
+        const result = await addToCart(productId, quantity, planId)
         await refreshCart()
+        if (!result.ok) {
+          showToast(result.error)
+          return { ok: false, error: result.error }
+        }
         if (options?.label) {
           showToast(`«${options.label}» به سبد سفارش اضافه شد`)
         } else {
@@ -122,6 +161,11 @@ export function CartProvider({
         if (options?.openAfterAdd) {
           setDrawerOpen(true)
         }
+        return { ok: true }
+      } catch {
+        const fallback = 'افزودن به سبد خرید با خطا مواجه شد. لطفاً دوباره تلاش کنید.'
+        showToast(fallback)
+        return { ok: false, error: fallback }
       } finally {
         setIsLoading(false)
       }
@@ -130,31 +174,66 @@ export function CartProvider({
   )
 
   const updateQuantity = useCallback(
-    async (productId: string, quantity: number, planId?: string | null) => {
+    async (
+      productId: string,
+      quantity: number,
+      planId?: string | null,
+    ): Promise<CartActionOutcome> => {
       setIsLoading(true)
       try {
-        await setCartQuantity(productId, quantity, planId)
+        const result = await setCartQuantity(productId, quantity, planId)
         await refreshCart()
-      } finally {
-        setIsLoading(false)
-      }
-    },
-    [refreshCart],
-  )
-
-  const removeItem = useCallback(
-    async (productId: string, planId?: string | null) => {
-      setIsLoading(true)
-      try {
-        await removeFromCart(productId, planId)
-        await refreshCart()
-        showToast('مورد از سبد سفارش حذف شد')
+        if (!result.ok) {
+          showToast(result.error)
+          return { ok: false, error: result.error }
+        }
+        return { ok: true }
+      } catch {
+        const fallback = 'به‌روزرسانی تعداد با خطا مواجه شد.'
+        showToast(fallback)
+        return { ok: false, error: fallback }
       } finally {
         setIsLoading(false)
       }
     },
     [refreshCart, showToast],
   )
+
+  const removeItem = useCallback(
+    async (productId: string, planId?: string | null): Promise<CartActionOutcome> => {
+      setIsLoading(true)
+      try {
+        const result = await removeFromCart(productId, planId)
+        await refreshCart()
+        if (!result.ok) {
+          showToast(result.error)
+          return { ok: false, error: result.error }
+        }
+        showToast('مورد از سبد سفارش حذف شد')
+        return { ok: true }
+      } catch {
+        const fallback = 'حذف مورد از سبد با خطا مواجه شد.'
+        showToast(fallback)
+        return { ok: false, error: fallback }
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [refreshCart, showToast],
+  )
+
+  const pruneUnavailable = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const result = await pruneUnavailableCartItems()
+      await refreshCart()
+      if (result.ok) {
+        showToast('اقلام ناموجود از سبد خرید حذف شدند.')
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }, [refreshCart, showToast])
 
   const openDrawer = useCallback(() => {
     setDrawerOpen(true)
@@ -175,6 +254,7 @@ export function CartProvider({
       value={{
         pricing,
         count,
+        staleCount,
         isLoading,
         drawerOpen,
         openDrawer,
@@ -184,6 +264,7 @@ export function CartProvider({
         addItem,
         updateQuantity,
         removeItem,
+        pruneUnavailable,
         showToast,
         cinemaBridge,
         setCinemaBridge,

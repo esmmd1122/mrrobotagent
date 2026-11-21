@@ -7,6 +7,8 @@ import { FulfillmentPanel } from '@/components/admin/FulfillmentPanel'
 import { ensureFulfillmentForOrder } from '@/modules/fulfillment/service'
 import { FULFILLMENT_STATUS_LABELS } from '@/modules/fulfillment/labels'
 import { formatPurchaseInfoForAdmin } from '@/modules/commerce/purchase-fields'
+import { formatStoreMoney } from '@/modules/commerce/pricing'
+import { paymentStatusLabelFa } from '@/modules/payment/labels'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -46,17 +48,17 @@ export default async function OrderDetailPage({ params }: Props) {
         ) : null}
       </div>
       <div className="admin-card grid gap-1 p-4 text-sm sm:grid-cols-2">
-        <p>جمع جزء: {order.subtotalAmount.toLocaleString('fa-IR')}</p>
-        <p>تخفیف: {order.discountAmount.toLocaleString('fa-IR')} {order.discountCode ? `(${order.discountCode})` : ''}</p>
-        <p>مبلغ نهایی: {order.totalAmount.toLocaleString('fa-IR')}</p>
-        <p>پرداخت: {order.paymentStatus}</p>
+        <p>جمع جزء: {formatStoreMoney(order.subtotalAmount, order.currency)}</p>
+        <p>تخفیف: {formatStoreMoney(order.discountAmount, order.currency)} {order.discountCode ? `(${order.discountCode})` : ''}</p>
+        <p>مبلغ نهایی: {formatStoreMoney(order.totalAmount, order.currency)}</p>
+        <p>پرداخت: {paymentStatusLabelFa(order.paymentStatus)}</p>
         <p>تحویل: {FULFILLMENT_STATUS_LABELS[fulfillment.status] || fulfillment.status}</p>
       </div>
       <ul className="admin-card space-y-2 p-4 text-sm">
         {order.items.map((i) => (
           <li key={i.id}>
             {i.productName}
-            {i.planTitle ? ` — ${i.planTitle}` : ''} × {i.quantity} — {i.lineTotal.toLocaleString('fa-IR')}
+            {i.planTitle ? ` — ${i.planTitle}` : ''} × {i.quantity} — {formatStoreMoney(i.lineTotal, order.currency)}
             {i.planDurationUnit ? (
               <span className="mr-1 text-xs text-white/45">
                 ({i.planDurationValue ?? ''} {i.planDurationUnit})
@@ -68,7 +70,7 @@ export default async function OrderDetailPage({ params }: Props) {
               </p>
             ) : null}
             {i.listUnitPrice > i.unitPrice ? (
-              <span className="mr-2 text-xs text-white/45"> (لیست: {i.listUnitPrice.toLocaleString('fa-IR')})</span>
+              <span className="mr-2 text-xs text-white/45"> (لیست: {formatStoreMoney(i.listUnitPrice, order.currency)})</span>
             ) : null}
           </li>
         ))}
@@ -111,8 +113,8 @@ export default async function OrderDetailPage({ params }: Props) {
           <select name="paymentStatus" defaultValue={order.paymentStatus} className="admin-input mt-1">
             {['UNPAID', 'PAID', 'FAILED', 'REFUNDED'].map((s) => (
               <option key={s} value={s} disabled={s === 'PAID' && !hasVerifiedPayment}>
-                {s}
-                {s === 'PAID' && !hasVerifiedPayment ? ' (نیاز به Payment تأیید‌شده)' : ''}
+                {paymentStatusLabelFa(s)} ({s})
+                {s === 'PAID' && !hasVerifiedPayment ? ' — نیاز به Payment تأیید‌شده' : ''}
               </option>
             ))}
           </select>
