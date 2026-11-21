@@ -2,10 +2,12 @@
 
 import Link from 'next/link'
 import { useEffect, useTransition } from 'react'
-import { AlertTriangle, Minus, Plus, ShoppingBag, Trash2, X, ArrowLeft } from 'lucide-react'
+import { AlertTriangle, Minus, Plus, ShoppingBag, Trash2, X, ArrowLeft, ShieldCheck } from 'lucide-react'
 import { goToCheckout } from '@/app/cart/actions'
 import { useCart } from '@/components/cart/CartProvider'
+import { ProductLogo } from '@/components/ui/ProductLogo'
 import { formatStoreMoney } from '@/modules/commerce/money'
+import { computeCartSavings } from '@/modules/commerce/storefront-presenters'
 
 function toFaDigits(value: number | string) {
   return String(value).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)])
@@ -35,6 +37,7 @@ export function CartDrawer() {
   }, [drawerOpen, closeDrawer])
 
   const hasLines = pricing.lines.length > 0
+  const catalogSavings = computeCartSavings(pricing.lines)
 
   return (
     <>
@@ -53,7 +56,7 @@ export function CartDrawer() {
             <h3 className="text-[1.08rem] font-extrabold text-white">سبد سفارش شما</h3>
             <p className="text-xs text-[#7c92b8]">
               {hasLines
-                ? `${toFaDigits(count)} مورد با قیمت محاسبه‌شده توسط سرور`
+                ? `${toFaDigits(count)} مورد با قیمت محاسبه‌شده در سرور`
                 : 'سفارش شما به صورت امن ثبت و پیگیری می‌شود'}
             </p>
           </div>
@@ -110,6 +113,31 @@ export function CartDrawer() {
                 key={`${item.productId}-${item.planId ?? 'base'}`}
                 className="cinema-bag-row"
               >
+                <Link
+                  href={`/subscriptions/${item.slug}`}
+                  onClick={closeDrawer}
+                  className="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-[#121622]"
+                >
+                  {item.imageUrl ? (
+                    <img
+                      src={item.imageUrl}
+                      alt={item.productName}
+                      className="h-full w-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <ProductLogo
+                      slug={
+                        item.slug as
+                          | 'chatgpt-plus'
+                          | 'capcut-pro'
+                          | 'grok'
+                          | 'gemini-pro'
+                      }
+                    />
+                  )}
+                </Link>
+
                 <div className="min-w-0 flex-1">
                   <Link
                     href={`/subscriptions/${item.slug}`}
@@ -119,12 +147,21 @@ export function CartDrawer() {
                     {item.productName}
                   </Link>
                   {item.planTitle ? (
-                    <span className="mt-0.5 block text-xs text-[#38bdf8]">{item.planTitle}</span>
+                    <span className="mt-0.5 block truncate text-xs text-[#38bdf8]">
+                      {item.planTitle}
+                    </span>
                   ) : null}
-                  <span className="mt-1 block text-xs text-[#a8bad8] tabular-nums">
-                    {formatStoreMoney(item.unitPrice, pricing.currency)} × {toFaDigits(item.quantity)}
-                  </span>
-                  <span className="mt-0.5 block text-xs font-semibold text-white/90 tabular-nums">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-[#a8bad8] tabular-nums">
+                    <span>
+                      {formatStoreMoney(item.unitPrice, pricing.currency)} × {toFaDigits(item.quantity)}
+                    </span>
+                    {item.listUnitPrice > item.unitPrice ? (
+                      <span className="text-[11px] text-[#7c92b8] line-through">
+                        {formatStoreMoney(item.listUnitPrice, pricing.currency)}
+                      </span>
+                    ) : null}
+                  </div>
+                  <span className="mt-0.5 block text-xs font-semibold text-white/95 tabular-nums">
                     {formatStoreMoney(item.lineTotal, pricing.currency)}
                   </span>
                 </div>
@@ -135,11 +172,11 @@ export function CartDrawer() {
                     disabled={isLoading}
                     onClick={() => void updateQuantity(item.productId, item.quantity - 1, item.planId)}
                     className="cinema-qty-btn"
-                    aria-label="کاهش تعداد"
+                    aria-label={`کاهش تعداد ${item.productName}`}
                   >
                     <Minus className="h-3.5 w-3.5" />
                   </button>
-                  <span className="min-w-6 text-center text-sm font-semibold text-white">
+                  <span className="min-w-6 text-center text-sm font-semibold text-white tabular-nums">
                     {toFaDigits(item.quantity)}
                   </span>
                   <button
@@ -147,7 +184,7 @@ export function CartDrawer() {
                     disabled={isLoading || item.quantity >= 99}
                     onClick={() => void updateQuantity(item.productId, item.quantity + 1, item.planId)}
                     className="cinema-qty-btn"
-                    aria-label="افزایش تعداد"
+                    aria-label={`افزایش تعداد ${item.productName}`}
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
@@ -156,7 +193,7 @@ export function CartDrawer() {
                     disabled={isLoading}
                     onClick={() => void removeItem(item.productId, item.planId)}
                     className="cinema-qty-btn text-[#ff8da1] hover:border-[#ef1d42]/60"
-                    aria-label="حذف از سبد"
+                    aria-label={`حذف ${item.productName} از سبد`}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -167,12 +204,28 @@ export function CartDrawer() {
         </div>
 
         <div className="cinema-drawer-foot">
-          <div className="mb-3 flex items-center justify-between gap-3">
+          {hasLines && catalogSavings > 0 ? (
+            <div className="mb-2 flex items-center justify-between gap-3 text-xs text-emerald-300 tabular-nums">
+              <span>سود شما از تخفیف محصولات</span>
+              <span className="font-semibold">
+                {formatStoreMoney(catalogSavings, pricing.currency)}
+              </span>
+            </div>
+          ) : null}
+
+          <div className="mb-2.5 flex items-center justify-between gap-3">
             <span className="text-sm font-bold text-white">جمع کل قابل پرداخت</span>
-            <span className="cinema-price-chip">
+            <span className="cinema-price-chip tabular-nums">
               {hasLines ? formatStoreMoney(pricing.total, pricing.currency) : '۰ تومان'}
             </span>
           </div>
+
+          {hasLines ? (
+            <p className="mb-3 flex items-center gap-1.5 text-[11px] text-[#7c92b8]">
+              <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[#38bdf8]" />
+              <span>کد تخفیف در مرحله بعد (تسویه‌حساب) قابل اعمال است.</span>
+            </p>
+          ) : null}
 
           <div className="flex flex-col gap-2">
             <button

@@ -1,11 +1,20 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Headphones,
+  PackageSearch,
+  Store,
+} from 'lucide-react'
 import { findOrderByCustomerAccess } from '@/modules/commerce/order-access'
 import { formatStoreMoney } from '@/modules/commerce/pricing'
 import { safeDecodeParam } from '@/modules/commerce/error-messages'
 import { ORDER_STATUS_LABELS } from '@/lib/auth/constants'
 import { getPaymentGatewayAvailability } from '@/modules/payment/registry'
 import { paymentStatusLabelFa } from '@/modules/payment/labels'
+import { CheckoutSteps } from '@/components/shop/CheckoutSteps'
 import { StartPaymentButton } from '@/components/orders/StartPaymentButton'
 import { CartSyncOnMount } from '@/components/cart/CartSyncOnMount'
 
@@ -23,23 +32,23 @@ export default async function OrderConfirmationPage({ searchParams }: Props) {
   const { orderNumber, token, paymentMode, payError, payMsg } = await searchParams
   if (!orderNumber || !token) {
     return (
-      <div className="section-glow pt-24 pb-20">
+      <div className="section-glow pt-28 pb-20">
         <div className="mx-auto max-w-lg px-4">
-          <article className="card-shop space-y-4 p-6 text-center">
-            <h1 className="text-xl font-bold">رسید ثبت سفارش</h1>
-            <p className="text-sm leading-relaxed text-mr-muted">
+          <article className="space-y-4 rounded-2xl border border-white/12 bg-[#0d1018] p-6 text-center">
+            <h1 className="text-xl font-black text-white">رسید ثبت سفارش</h1>
+            <p className="text-sm leading-relaxed text-[#a8bad8]">
               لینک رسید سفارش ناقص است. برای مشاهده سفارش‌های خود وارد حساب کاربری شوید یا از لینک اختصاصی پس از ثبت سفارش استفاده کنید.
             </p>
             <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-center">
               <Link
                 href="/account/orders"
-                className="inline-flex min-h-[42px] items-center justify-center rounded-xl bg-mr-red px-5 py-2 text-sm font-semibold text-white"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-[#e10600] px-5 py-2 text-sm font-bold text-white transition hover:bg-[#c80500]"
               >
                 مشاهده سفارش‌های من
               </Link>
               <Link
                 href="/shop"
-                className="inline-flex min-h-[42px] items-center justify-center rounded-xl border border-mr-border px-5 py-2 text-sm text-white/90 hover:bg-white/5"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-white/15 bg-white/[0.03] px-5 py-2 text-sm text-white/90 transition hover:bg-white/5"
               >
                 بازگشت به فروشگاه
               </Link>
@@ -64,54 +73,80 @@ export default async function OrderConfirmationPage({ searchParams }: Props) {
   const trackHref = `/orders/track?orderNumber=${encodeURIComponent(order.orderNumber)}&token=${encodeURIComponent(token)}`
 
   return (
-    <div className="section-glow pt-24 pb-20">
+    <div className="section-glow pt-28 pb-24">
       <CartSyncOnMount />
-      <div className="mx-auto max-w-xl px-4">
-        <article className="card-shop space-y-5 p-6 sm:p-8">
+      <div className="mx-auto max-w-2xl px-4 sm:px-6">
+        <CheckoutSteps current="confirmation" />
+
+        <article className="space-y-6 rounded-2xl border border-white/12 bg-[#0d1018] p-6 sm:p-8">
           <div className="text-center">
-            <p className="text-xs tracking-widest text-mr-red">ORDER PLACED</p>
-            <h1 className="mt-2 text-2xl font-bold">سفارش شما با موفقیت ثبت شد</h1>
-            <p className="mt-2 text-sm text-mr-muted">شماره پیگیری سفارش:</p>
+            <div
+              className={`mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full border ${
+                isUnpaid
+                  ? 'border-amber-500/40 bg-amber-500/12 text-amber-300'
+                  : 'border-emerald-500/40 bg-emerald-500/12 text-emerald-300'
+              }`}
+            >
+              {isUnpaid ? <Clock className="h-6 w-6" /> : <CheckCircle2 className="h-6 w-6" />}
+            </div>
+            <p className="text-xs font-semibold text-[#ff5a56]">
+              {isUnpaid ? 'سفارش ثبت شد — در انتظار پرداخت' : 'سفارش ثبت و پرداخت شد'}
+            </p>
+            <h1 className="mt-1.5 text-2xl font-black text-white">سفارش شما با موفقیت ثبت شد</h1>
+            <p className="mt-2 text-xs text-[#a8bad8]">شماره پیگیری اختصاصی سفارش شما:</p>
             <p
-              className="mt-1 inline-block rounded-lg border border-mr-border bg-mr-charcoal px-4 py-1.5 text-lg font-bold tracking-wide tabular-nums"
+              className="mt-1.5 inline-block rounded-xl border border-white/15 bg-[#121622] px-5 py-2 font-mono text-lg font-bold tracking-wide text-white tabular-nums"
               dir="ltr"
             >
               {order.orderNumber}
             </p>
           </div>
 
-          <div className="grid gap-2 rounded-xl border border-mr-border bg-mr-charcoal/50 p-4 text-sm sm:grid-cols-2">
-            <p>
-              <span className="text-mr-muted">وضعیت سفارش: </span>
-              <strong>{ORDER_STATUS_LABELS[order.status] || order.status}</strong>
-            </p>
-            <p>
-              <span className="text-mr-muted">وضعیت پرداخت: </span>
-              <strong>{paymentStatusLabelFa(order.paymentStatus)}</strong>
-            </p>
-            <p className="sm:col-span-2">
-              <span className="text-mr-muted">مبلغ قابل پرداخت: </span>
-              <strong className="tabular-nums text-white">
+          <div className="grid gap-3 rounded-xl border border-white/10 bg-[#121622] p-4 text-sm sm:grid-cols-2">
+            <div className="flex items-center justify-between gap-2 sm:block">
+              <span className="block text-xs text-[#a8bad8]">وضعیت سفارش</span>
+              <p className="mt-0.5 font-bold text-white">
+                {ORDER_STATUS_LABELS[order.status] || order.status}
+              </p>
+            </div>
+            <div className="flex items-center justify-between gap-2 sm:block">
+              <span className="block text-xs text-[#a8bad8]">وضعیت پرداخت</span>
+              <p
+                className={`mt-0.5 flex items-center gap-1.5 font-bold ${
+                  isUnpaid ? 'text-amber-300' : 'text-emerald-300'
+                }`}
+              >
+                {isUnpaid ? (
+                  <Clock className="h-3.5 w-3.5 shrink-0" />
+                ) : (
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                )}
+                <span>{paymentStatusLabelFa(order.paymentStatus)}</span>
+              </p>
+            </div>
+            <div className="flex items-center justify-between border-t border-white/10 pt-3 sm:col-span-2">
+              <span className="text-xs text-[#a8bad8]">مبلغ قابل پرداخت</span>
+              <strong className="text-base font-black text-white tabular-nums">
                 {formatStoreMoney(order.totalAmount, order.currency)}
               </strong>
-            </p>
+            </div>
           </div>
 
-          <div className="space-y-2 border-t border-mr-border pt-4 text-sm">
-            <h2 className="font-semibold text-white/90">اقلام سفارش</h2>
+          <div className="space-y-2.5 border-t border-white/10 pt-4 text-sm">
+            <h2 className="font-bold text-white">اقلام سفارش</h2>
             <ul className="space-y-2">
               {order.items.map((item) => (
                 <li key={item.id} className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="break-words font-medium">
+                    <p className="break-words font-semibold text-white">
                       {item.productName}
                       {item.planTitle ? ` — ${item.planTitle}` : ''}
                     </p>
-                    <p className="text-xs text-mr-muted tabular-nums">
+                    <p className="text-xs text-[#a8bad8] tabular-nums">
                       تعداد: {item.quantity.toLocaleString('fa-IR')}
                     </p>
                   </div>
-                  <span className="shrink-0 tabular-nums">
+                  <span className="shrink-0 font-semibold text-white tabular-nums">
                     {formatStoreMoney(item.lineTotal, order.currency)}
                   </span>
                 </li>
@@ -128,20 +163,24 @@ export default async function OrderConfirmationPage({ searchParams }: Props) {
           </div>
 
           {showGatewayError ? (
-            <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-              انتقال خودکار به درگاه پرداخت انجام نشد
-              {decodedPayMsg ? ` (${decodedPayMsg})` : ''}. سفارش شما ثبت شده و می‌توانید دوباره تلاش کنید.
-            </p>
+            <div className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+              <p>
+                انتقال خودکار به درگاه پرداخت انجام نشد
+                {decodedPayMsg ? ` (${decodedPayMsg})` : ''}. سفارش شما ثبت شده و می‌توانید دوباره تلاش کنید.
+              </p>
+            </div>
           ) : null}
 
           {isUnpaid && !gateway.available ? (
             <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 p-4 text-sm leading-relaxed text-amber-100">
-              <p className="font-semibold text-amber-200">
-                پرداخت آنلاین در حال حاضر غیرفعال است
+              <p className="flex items-center gap-2 font-bold text-amber-200">
+                <Clock className="h-4 w-4 shrink-0" />
+                <span>پرداخت آنلاین در حال حاضر غیرفعال است</span>
               </p>
-              <p className="mt-1.5 text-xs text-amber-100/90">
-                سفارش شما با وضعیت «در انتظار پرداخت» در سیستم ذخیره شده است و هیچ پرداختی انجام نشده است.
-                برای هماهنگی پرداخت دستی و فعال‌سازی سرویس، با پشتیبانی MR.ROBOT در ارتباط باشید و شماره سفارش{' '}
+              <p className="mt-2 text-xs leading-relaxed text-amber-100/90">
+                سفارش شما با وضعیت «در انتظار پرداخت» در سیستم ذخیره شده است و هنوز پرداختی انجام نشده است.
+                برای هماهنگی پرداخت و فعال‌سازی سرویس، با پشتیبانی MR.ROBOT در ارتباط باشید و شماره سفارش{' '}
                 <span dir="ltr" className="font-mono font-semibold text-white">
                   {order.orderNumber}
                 </span>{' '}
@@ -149,9 +188,10 @@ export default async function OrderConfirmationPage({ searchParams }: Props) {
               </p>
               <Link
                 href={`/contact?subject=${encodeURIComponent(supportSubject)}`}
-                className="mt-3 inline-flex min-h-[42px] w-full items-center justify-center rounded-xl bg-mr-red px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+                className="mt-3.5 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-[#e10600] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#c80500]"
               >
-                تماس با پشتیبانی برای هماهنگی پرداخت
+                <Headphones className="h-4 w-4" />
+                <span>تماس با پشتیبانی برای هماهنگی پرداخت</span>
               </Link>
             </div>
           ) : null}
@@ -160,23 +200,25 @@ export default async function OrderConfirmationPage({ searchParams }: Props) {
             <StartPaymentButton orderNumber={order.orderNumber} viewToken={token} />
           ) : null}
 
-          <div className="flex flex-col gap-2 border-t border-mr-border pt-4 text-center sm:flex-row sm:justify-between">
+          <div className="flex flex-col gap-2.5 border-t border-white/10 pt-4 text-center sm:flex-row sm:justify-between">
             <Link
               href={trackHref}
-              className="inline-flex min-h-[42px] flex-1 items-center justify-center rounded-xl border border-mr-border px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/5"
+              className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-bold text-white transition hover:border-white/30 hover:bg-white/[0.08]"
             >
-              مشاهده صفحه پیگیری سفارش
+              <PackageSearch className="h-4 w-4 text-[#38bdf8]" />
+              <span>مشاهده صفحه پیگیری سفارش</span>
             </Link>
             <Link
               href="/shop"
-              className="inline-flex min-h-[42px] items-center justify-center rounded-xl border border-mr-border px-4 py-2 text-sm text-mr-muted transition hover:bg-white/5 hover:text-white"
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-white/12 px-4 py-2 text-sm text-[#a8bad8] transition hover:bg-white/5 hover:text-white"
             >
-              بازگشت به فروشگاه
+              <Store className="h-4 w-4" />
+              <span>بازگشت به فروشگاه</span>
             </Link>
           </div>
 
-          <p className="text-center text-xs text-mr-muted">
-            لطفاً لینک این صفحه یا صفحه پیگیری را نزد خود نگه دارید؛ برای مشاهده وضعیت سفارش مهمان به توکن اختصاصی این لینک نیاز است.
+          <p className="text-center text-xs leading-relaxed text-[#7c92b8]">
+            لطفاً شماره پیگیری یا لینک این صفحه را نزد خود نگه دارید؛ برای مشاهده وضعیت سفارش مهمان به لینک اختصاصی نیاز است.
           </p>
         </article>
       </div>

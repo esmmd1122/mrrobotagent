@@ -9,6 +9,7 @@ export type PricedCartLine = {
   planId?: string | null
   slug: string
   productName: string
+  imageUrl?: string | null
   planTitle?: string | null
   planDurationValue?: number | null
   planDurationUnit?: string | null

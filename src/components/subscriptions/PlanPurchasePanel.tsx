@@ -27,6 +27,7 @@ export type StorePlan = {
   promoPrice: number | null
   durationValue: number | null
   durationUnit: string
+  fulfillmentInstructions?: string | null
   isFeatured: boolean
 }
 
@@ -165,7 +166,7 @@ export function PlanPurchasePanel({
                       </p>
                     ) : null}
                   </div>
-                  <div className="shrink-0 text-left" dir="ltr">
+                  <div className="shrink-0 text-left">
                     <p className="text-sm font-black text-white tabular-nums">
                       {u != null ? formatStoreMoney(u, currency) : '—'}
                     </p>
@@ -179,6 +180,13 @@ export function PlanPurchasePanel({
               </label>
             )
           })}
+        </div>
+      ) : null}
+
+      {selected?.fulfillmentInstructions?.trim() ? (
+        <div className="rounded-xl border border-white/10 bg-[#121622] px-3.5 py-2.5 text-xs leading-relaxed text-[#b9c8e3]">
+          <span className="font-bold text-white">نحوه تحویل طرح انتخابی: </span>
+          <span>{selected.fulfillmentInstructions.trim()}</span>
         </div>
       ) : null}
 
@@ -292,25 +300,19 @@ export function PlanPurchasePanel({
             <span>{feedback.text}</span>
           </p>
           {feedback.kind === 'ok' ? (
-            <div className="mt-2.5 flex flex-wrap gap-3">
+            <div className="mt-2.5 flex flex-wrap gap-2">
               <Link
                 href="/checkout"
-                className="inline-flex items-center gap-1 rounded-lg bg-[#e10600] px-3 py-1.5 font-bold text-white hover:bg-[#c80500]"
+                className="inline-flex min-h-[36px] items-center gap-1 rounded-lg bg-[#e10600] px-3.5 py-1.5 font-bold text-white transition hover:bg-[#c80500]"
               >
                 <span>ادامه تسویه‌حساب</span>
                 <ArrowLeft className="h-3.5 w-3.5" />
               </Link>
               <Link
                 href="/cart"
-                className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/40 px-3 py-1.5 font-semibold text-emerald-200 hover:bg-emerald-500/15"
+                className="inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-emerald-400/40 px-3.5 py-1.5 font-semibold text-emerald-200 transition hover:bg-emerald-500/15"
               >
                 مشاهده سبد خرید
-              </Link>
-              <Link
-                href="/shop"
-                className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-3 py-1.5 text-white/80 hover:text-white"
-              >
-                ادامه خرید
               </Link>
             </div>
           ) : null}
