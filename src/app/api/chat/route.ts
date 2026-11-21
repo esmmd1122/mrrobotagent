@@ -1,5 +1,5 @@
 import OpenAI from 'openai'
-import { openai as aiSdkOpenAi } from '@ai-sdk/openai'
+import { createOpenAI } from '@ai-sdk/openai'
 import { streamText } from 'ai'
 import { createBookingTools } from '@/ai/tools'
 import { aiServices } from '@/data/aiServices'
@@ -7,23 +7,35 @@ import { otherServices } from '@/data/otherServices'
 import { ORDER_STATUS_LABELS } from '@/lib/auth/constants'
 import { getVisibleProducts } from '@/lib/catalog'
 import { getCustomerSession } from '@/lib/customer-auth/session'
+import { parseStringListJson } from '@/lib/product-list-fields'
 import { rateLimit } from '@/lib/rate-limit'
 import {
+  OPENAI_MAX_COMPLETION_TOKENS,
   buildMrRobotSystemInstructions,
+  classifyOpenAiError,
+  extractChatCompletionText,
+  getSafeOpenAiEnvDiagnostics,
   isOpenAiConfigured,
+  modelSupportsTemperature,
   resolveOpenAiModel,
+  sanitizeOpenAiApiKey,
   validateMrRobotChatPayload,
+  type VerifiedCatalogPlanSummary,
   type VerifiedCatalogSummaryItem,
   type VerifiedCustomerOrderSummary,
 } from '@/modules/ai/mrrobot-assistant'
 import { listOrdersForCustomer } from '@/modules/commerce/customer-order-access'
 import { resolveProductDisplayPrice } from '@/modules/commerce/display-price'
 import { formatStoreMoney } from '@/modules/commerce/money'
+import { effectiveUnitPrice } from '@/modules/commerce/unit-price'
 import { FULFILLMENT_STATUS_LABELS } from '@/modules/fulfillment/labels'
 import { paymentStatusLabelFa } from '@/modules/payment/labels'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+export const maxDuration = 30
+
+const MAX_REQUEST_BYTES = 24_000
 
 function extractClientIp(req: Request): string {
   const fwd = req.headers.get('x-forwarded-for')
@@ -33,6 +45,23 @@ function extractClientIp(req: Request): string {
   }
   const realIp = req.headers.get('x-real-ip')?.trim()
   return realIp ? realIp.slice(0, 64) : 'unknown'
+}
+
+function calcValidDiscountPercent(
+  price: number | null | undefined,
+  promoPrice: number | null | undefined,
+): number | null {
+  if (
+    typeof price !== 'number' ||
+    typeof promoPrice !== 'number' ||
+    price <= 0 ||
+    promoPrice <= 0 ||
+    promoPrice >= price
+  ) {
+    return null
+  }
+  const pct = Math.round(((price - promoPrice) / price) * 100)
+  return pct > 0 && pct < 100 ? pct : null
 }
 
 export async function GET() {
@@ -78,19 +107,66 @@ async function buildVerifiedMrRobotContext() {
           isFeatured: pl.isFeatured,
         })),
       })
+
       const priceSummary =
         display.purchasable && display.unitPrice != null
           ? display.isFromPrice
             ? `از ${formatStoreMoney(display.unitPrice, p.currency)}`
             : formatStoreMoney(display.unitPrice, p.currency)
           : 'تماس بگیرید'
+
+      const singleDiscount = !p.plansEnabled
+        ? calcValidDiscountPercent(p.price, p.promoPrice)
+        : null
+      const originalPriceSummary =
+        singleDiscount !== null && p.price != null
+          ? formatStoreMoney(p.price, p.currency)
+          : null
+
+      const plans: VerifiedCatalogPlanSummary[] = p.plansEnabled
+        ? p.plans
+            .filter((pl) => pl.isActive && pl.price > 0)
+            .slice(0, 6)
+            .map((pl) => {
+              const unit = effectiveUnitPrice(pl.price, pl.promoPrice) ?? pl.price
+              const disc = calcValidDiscountPercent(pl.price, pl.promoPrice)
+              const unitFa =
+                pl.durationUnit === 'DAY'
+                  ? 'روز'
+                  : pl.durationUnit === 'YEAR'
+                    ? 'سال'
+                    : 'ماه'
+              const durationLabel =
+                pl.durationValue && pl.durationValue > 0
+                  ? `${pl.durationValue} ${unitFa}`
+                  : null
+              return {
+                title: pl.title,
+                durationLabel,
+                priceFormatted: formatStoreMoney(unit, p.currency),
+                originalPriceFormatted:
+                  disc !== null ? formatStoreMoney(pl.price, p.currency) : null,
+                discountPercent: disc,
+              }
+            })
+        : []
+
+      const features = parseStringListJson(p.featuresJson).slice(0, 4)
+      const details = parseStringListJson(p.detailsJson).slice(0, 3)
+
       return {
         name: p.nameFa || p.nameEn || p.slug,
+        nameEn: p.nameEn || undefined,
         slug: p.slug,
         categoryName: p.category?.nameFa || p.category?.nameEn || undefined,
         priceSummary,
+        originalPriceSummary,
+        discountPercent: singleDiscount,
         purchasable: display.purchasable,
-        shortDescription: p.description?.slice(0, 140),
+        shortDescription: p.description?.slice(0, 160),
+        features: features.length > 0 ? features : undefined,
+        details: details.length > 0 ? details : undefined,
+        plans: plans.length > 0 ? plans : undefined,
       }
     })
   } catch {
@@ -108,7 +184,8 @@ async function buildVerifiedMrRobotContext() {
         orderNumber: o.orderNumber,
         statusFa: ORDER_STATUS_LABELS[o.status] || o.status,
         paymentStatusFa: paymentStatusLabelFa(o.paymentStatus),
-        fulfillmentStatusFa: FULFILLMENT_STATUS_LABELS[o.fulfillmentStatus] || o.fulfillmentStatus,
+        fulfillmentStatusFa:
+          FULFILLMENT_STATUS_LABELS[o.fulfillmentStatus] || o.fulfillmentStatus,
         totalFormatted: formatStoreMoney(o.totalAmount, o.currency),
         createdDateFa: new Intl.DateTimeFormat('fa-IR').format(new Date(o.createdAt)),
       }))
@@ -131,15 +208,16 @@ async function buildVerifiedMrRobotContext() {
 }
 
 export async function POST(req: Request) {
-  if (!isOpenAiConfigured()) {
+  const apiKey = sanitizeOpenAiApiKey()
+  if (!apiKey) {
     return Response.json(
       {
         enabled: false,
         code: 'AI_NOT_CONFIGURED',
         error:
-          'دستیار هوشمند MR.ROBOT AI در حال حاضر روی سرور پیکربندی نشده است. برای فعال‌سازی، کلید OPENAI_API_KEY باید در تنظیمات سرور ثبت شود.',
+          'دستیار هوشمند در حال حاضر فعال نیست. می‌توانید از فروشگاه محصولات را مشاهده کنید یا با پشتیبانی در تماس باشید.',
       },
-      { status: 503 },
+      { status: 503, headers: { 'Cache-Control': 'no-store' } },
     )
   }
 
@@ -148,15 +226,37 @@ export async function POST(req: Request) {
     return Response.json(
       {
         code: 'RATE_LIMITED',
-        error: 'تعداد درخواست‌های گفت‌وگو بیش از حد مجاز است. لطفاً یک دقیقه صبر کرده و دوباره تلاش کنید.',
+        error:
+          'تعداد پیام‌های ارسالی در این لحظه بیش از حد مجاز است. لطفاً یک دقیقه صبر کرده و دوباره تلاش کنید.',
       },
-      { status: 429 },
+      { status: 429, headers: { 'Cache-Control': 'no-store' } },
+    )
+  }
+
+  const contentLength = Number(req.headers.get('content-length') || 0)
+  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) {
+    return Response.json(
+      {
+        code: 'PAYLOAD_TOO_LARGE',
+        error: 'حجم درخواست ارسالی بیش از حد مجاز است. لطفاً پیام کوتاه‌تری ارسال کنید.',
+      },
+      { status: 413 },
     )
   }
 
   let rawBody: unknown
   try {
-    rawBody = await req.json()
+    const rawText = await req.text()
+    if (rawText.length > MAX_REQUEST_BYTES) {
+      return Response.json(
+        {
+          code: 'PAYLOAD_TOO_LARGE',
+          error: 'حجم درخواست ارسالی بیش از حد مجاز است. لطفاً پیام کوتاه‌تری ارسال کنید.',
+        },
+        { status: 413 },
+      )
+    }
+    rawBody = JSON.parse(rawText)
   } catch {
     return Response.json({ error: 'بدنه درخواست JSON معتبر نیست.' }, { status: 400 })
   }
@@ -176,9 +276,10 @@ export async function POST(req: Request) {
       }
       const slug = businessSlug.trim()
       const tools = createBookingTools(slug)
+      const aiSdkProvider = createOpenAI({ apiKey })
 
       const result = await streamText({
-        model: aiSdkOpenAi(resolveOpenAiModel()),
+        model: aiSdkProvider(resolveOpenAiModel()),
         messages,
         system: `تو یک منشی هوشمند، حرفه‌ای و خوش‌برخورد برای سالن زیبایی هستی.
 وظیفه داری با مشتریان گفتگو کنی، اطلاعات خدمات و قیمت‌ها را از طریق ابزارها به آن‌ها بگویی و در نهایت برایشان نوبت ثبت کنی.
@@ -188,48 +289,61 @@ export async function POST(req: Request) {
       })
 
       return result.toDataStreamResponse()
-    } catch {
+    } catch (err) {
+      const classified = classifyOpenAiError(err)
+      console.error('[api/chat] salon streamText failed', {
+        category: classified.category,
+        upstreamStatus: classified.upstreamStatus,
+        providerCode: classified.providerCode,
+        diagnostics: getSafeOpenAiEnvDiagnostics(),
+      })
       return Response.json(
-        { error: 'خطا در برقراری ارتباط با سرویس گفت‌وگو. لطفاً دوباره تلاش کنید.' },
-        { status: 502 },
+        { code: classified.category, error: classified.userMessageFa },
+        { status: classified.httpStatus },
       )
     }
   }
 
-  // Official MR.ROBOT AI Assistant via OpenAI official SDK + Responses API
+  // Official MR.ROBOT AI Assistant via OpenAI official SDK + Chat Completions API
   const validated = validateMrRobotChatPayload(rawBody)
   if (!validated.ok) {
-    return Response.json({ error: validated.error }, { status: 400 })
+    return Response.json({ code: 'VALIDATION_ERROR', error: validated.error }, { status: 400 })
   }
 
+  const model = resolveOpenAiModel()
   try {
     const { instructions, isAuthenticated } = await buildVerifiedMrRobotContext()
-    const model = resolveOpenAiModel()
     const client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey,
+      timeout: 22_000,
+      maxRetries: 1,
     })
 
-    const response = await client.responses.create(
-      {
-        model,
-        instructions,
-        input: validated.messages.map((m) => ({
+    const completion = await client.chat.completions.create({
+      model,
+      messages: [
+        { role: 'system', content: instructions },
+        ...validated.messages.map((m) => ({
           role: m.role,
           content: m.content,
         })),
-        max_output_tokens: 650,
-        temperature: 0.55,
-      },
-      {
-        signal: AbortSignal.timeout(25_000),
-      },
-    )
+      ],
+      max_completion_tokens: OPENAI_MAX_COMPLETION_TOKENS,
+      ...(modelSupportsTemperature(model) ? { temperature: 0.55 } : {}),
+    })
 
-    const reply = response.output_text?.trim()
+    const reply = extractChatCompletionText(completion)
     if (!reply) {
+      console.error('[api/chat] OpenAI returned empty completion text', {
+        model,
+        finishReason: completion.choices?.[0]?.finish_reason ?? null,
+      })
       return Response.json(
-        { error: 'پاسخی از سرویس هوشمند دریافت نشد. لطفاً دوباره تلاش کنید.' },
-        { status: 502 },
+        {
+          code: 'EMPTY_REPLY',
+          error: 'پاسخی از سرویس هوشمند دریافت نشد. لطفاً دوباره تلاش کنید.',
+        },
+        { status: 502, headers: { 'Cache-Control': 'no-store' } },
       )
     }
 
@@ -246,49 +360,26 @@ export async function POST(req: Request) {
       },
     )
   } catch (err: unknown) {
-    const isTimeout =
-      err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')
-    const status =
-      typeof err === 'object' && err !== null && 'status' in err && typeof err.status === 'number'
-        ? err.status
-        : 502
-
-    if (isTimeout) {
-      return Response.json(
-        {
-          code: 'TIMEOUT',
-          error: 'زمان پاسخ‌گویی دستیار هوشمند به پایان رسید. لطفاً دوباره تلاش کنید.',
-        },
-        { status: 504 },
-      )
-    }
-
-    if (status === 401 || status === 403) {
-      return Response.json(
-        {
-          code: 'AUTH_ERROR',
-          error: 'کلید اتصال OpenAI در سرور معتبر نیست. لطفاً با مدیر سایت تماس بگیرید.',
-        },
-        { status: 503 },
-      )
-    }
-
-    if (status === 429) {
-      return Response.json(
-        {
-          code: 'UPSTREAM_RATE_LIMIT',
-          error: 'سرویس هوش مصنوعی موقتاً شلوغ است. لطفاً چند لحظه دیگر دوباره تلاش کنید.',
-        },
-        { status: 429 },
-      )
-    }
+    const classified = classifyOpenAiError(err)
+    console.error('[api/chat] OpenAI request failed', {
+      category: classified.category,
+      upstreamStatus: classified.upstreamStatus,
+      providerCode: classified.providerCode,
+      providerType: classified.providerType,
+      diagnostics: getSafeOpenAiEnvDiagnostics(),
+    })
 
     return Response.json(
       {
-        code: 'UPSTREAM_ERROR',
-        error: 'امکان دریافت پاسخ از دستیار هوشمند وجود نداشت. لطفاً دوباره تلاش کنید.',
+        code: classified.category,
+        error: classified.userMessageFa,
       },
-      { status: 502 },
+      {
+        status: classified.httpStatus,
+        headers: {
+          'Cache-Control': 'no-store',
+        },
+      },
     )
   }
 }

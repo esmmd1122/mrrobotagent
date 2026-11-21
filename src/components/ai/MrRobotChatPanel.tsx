@@ -7,6 +7,7 @@ import {
   AlertCircle,
   Loader2,
   MessageSquare,
+  RefreshCw,
   RotateCcw,
   Send,
   Sparkles,
@@ -16,6 +17,9 @@ import {
 import type { AssistantAnimState } from '@/components/cinema/engine/character/assistant-state'
 
 const MASCOT_AVATAR_SRC = '/assets/aistudio/IMG_0486_28b8e7ca.PNG'
+const SESSION_HISTORY_KEY = 'mrrobot_ai_chat_history_v1'
+const MAX_STORED_MESSAGES = 16
+const CLIENT_REQUEST_TIMEOUT_MS = 28_000
 
 const INITIAL_GREETING_TEXT = 'سلام! من MR.ROBOT هستم.\nچه کاری میتونم برات انجام بدم؟'
 
@@ -37,6 +41,7 @@ type BackendStatus = {
   configured: boolean
   model: string | null
   authenticated: boolean
+  checkFailed: boolean
 }
 
 type Props = {
@@ -55,6 +60,44 @@ function createGreetingMessage(): UiMessage {
   }
 }
 
+function loadSessionHistory(): UiMessage[] {
+  if (typeof window === 'undefined') return [createGreetingMessage()]
+  try {
+    const raw = window.sessionStorage.getItem(SESSION_HISTORY_KEY)
+    if (!raw) return [createGreetingMessage()]
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return [createGreetingMessage()]
+    const clean = parsed
+      .filter(
+        (m): m is UiMessage =>
+          typeof m === 'object' &&
+          m !== null &&
+          typeof (m as UiMessage).id === 'string' &&
+          ((m as UiMessage).role === 'user' || (m as UiMessage).role === 'assistant') &&
+          typeof (m as UiMessage).content === 'string' &&
+          (m as UiMessage).content.trim().length > 0,
+      )
+      .slice(-MAX_STORED_MESSAGES)
+    return clean.length > 0 ? clean : [createGreetingMessage()]
+  } catch {
+    return [createGreetingMessage()]
+  }
+}
+
+function saveSessionHistory(items: UiMessage[]) {
+  if (typeof window === 'undefined') return
+  try {
+    const trimmed = items.slice(-MAX_STORED_MESSAGES).map((m) => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+    }))
+    window.sessionStorage.setItem(SESSION_HISTORY_KEY, JSON.stringify(trimmed))
+  } catch {
+    // Ignore storage quota or private-mode restrictions cleanly
+  }
+}
+
 export function MrRobotChatPanel({
   open,
   assistantState,
@@ -67,16 +110,52 @@ export function MrRobotChatPanel({
     configured: false,
     model: null,
     authenticated: false,
+    checkFailed: false,
   })
   const [messages, setMessages] = useState<UiMessage[]>(() => [createGreetingMessage()])
+  const [hydratedHistory, setHydratedHistory] = useState(false)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [lastFailedInput, setLastFailedInput] = useState<string | null>(null)
 
   const listEndRef = useRef<HTMLDivElement | null>(null)
-  const inputRef = useRef<HTMLInputElement | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const stateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const messagesRef = useRef<UiMessage[]>(messages)
+  const inFlightRef = useRef(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+
+  messagesRef.current = messages
+
+  // Hydrate safe session-only conversation history on client mount
+  useEffect(() => {
+    const restored = loadSessionHistory()
+    setMessages(restored)
+    messagesRef.current = restored
+    setHydratedHistory(true)
+  }, [])
+
+  // Persist session history whenever messages change after hydration
+  useEffect(() => {
+    if (!hydratedHistory) return
+    saveSessionHistory(messages)
+  }, [messages, hydratedHistory])
+
+  // Auto-resize textarea height cleanly up to 4 lines
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 116)}px`
+  }, [input, open])
+
+  // Abort any pending request on unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort()
+    }
+  }, [])
 
   const clearStateTimer = useCallback(() => {
     if (stateTimerRef.current) {
@@ -90,7 +169,13 @@ export function MrRobotChatPanel({
     try {
       const res = await fetch('/api/chat', { cache: 'no-store' })
       if (!res.ok) {
-        setStatus({ checked: true, configured: false, model: null, authenticated: false })
+        setStatus({
+          checked: true,
+          configured: false,
+          model: null,
+          authenticated: false,
+          checkFailed: true,
+        })
         return
       }
       const data = (await res.json()) as {
@@ -103,9 +188,16 @@ export function MrRobotChatPanel({
         configured: Boolean(data.configured),
         model: data.model ?? null,
         authenticated: Boolean(data.authenticated),
+        checkFailed: false,
       })
     } catch {
-      setStatus({ checked: true, configured: false, model: null, authenticated: false })
+      setStatus({
+        checked: true,
+        configured: false,
+        model: null,
+        authenticated: false,
+        checkFailed: true,
+      })
     }
   }, [])
 
@@ -141,7 +233,7 @@ export function MrRobotChatPanel({
 
     const focusTimer = setTimeout(() => {
       if (window.innerWidth >= 768) {
-        inputRef.current?.focus()
+        textareaRef.current?.focus()
       }
     }, 180)
 
@@ -161,18 +253,32 @@ export function MrRobotChatPanel({
   }, [messages, sending, errorMessage, open])
 
   const sendMessage = useCallback(
-    async (rawText: string) => {
+    async (rawText: string, options?: { isRetry?: boolean }) => {
       const trimmed = rawText.trim()
-      if (!trimmed || sending) return
+      if (!trimmed || inFlightRef.current) return
 
       setErrorMessage(null)
       setLastFailedInput(null)
 
-      if (status.checked && !status.configured) {
+      if (status.checked && !status.configured && !status.checkFailed) {
         setErrorMessage(
-          'دستیار هوشمند MR.ROBOT AI در حال حاضر غیرفعال است. کلید OPENAI_API_KEY در تنظیمات سرور ثبت نشده است.',
+          'دستیار هوشمند در حال حاضر غیرفعال است. می‌توانید مستقیم از فروشگاه سفارش دهید یا با پشتیبانی تماس بگیرید.',
         )
         return
+      }
+
+      inFlightRef.current = true
+      setSending(true)
+      clearStateTimer()
+      onAssistantStateChange('thinking')
+
+      // Avoid duplicating the user's message when retrying a failed turn
+      let baseMessages = messagesRef.current
+      if (options?.isRetry) {
+        const last = baseMessages[baseMessages.length - 1]
+        if (last && last.role === 'user' && last.content === trimmed) {
+          baseMessages = baseMessages.slice(0, -1)
+        }
       }
 
       const userMsg: UiMessage = {
@@ -181,24 +287,28 @@ export function MrRobotChatPanel({
         content: trimmed,
       }
 
-      const nextMessages = [...messages, userMsg]
+      const nextMessages = [...baseMessages, userMsg]
+      messagesRef.current = nextMessages
       setMessages(nextMessages)
       setInput('')
-      setSending(true)
-      clearStateTimer()
-      onAssistantStateChange('thinking')
 
-      // Send real conversation history (excluding the static UI greeting if it's the only prior assistant msg)
+      // Send bounded real conversation history (excluding the static UI greeting)
       const apiMessages = nextMessages
         .filter((m) => m.id !== 'mrrobot-greeting')
         .slice(-14)
         .map((m) => ({ role: m.role, content: m.content }))
+
+      abortControllerRef.current?.abort()
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+      const timeoutHandle = setTimeout(() => controller.abort(), CLIENT_REQUEST_TIMEOUT_MS)
 
       try {
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messages: apiMessages }),
+          signal: controller.signal,
         })
 
         const payload = (await res.json().catch(() => ({}))) as {
@@ -209,10 +319,15 @@ export function MrRobotChatPanel({
         }
 
         if (res.status === 503 && payload.code === 'AI_NOT_CONFIGURED') {
-          setStatus((prev) => ({ ...prev, checked: true, configured: false }))
+          setStatus((prev) => ({
+            ...prev,
+            checked: true,
+            configured: false,
+            checkFailed: false,
+          }))
           setErrorMessage(
             payload.error ||
-              'دستیار هوشمند MR.ROBOT AI در حال حاضر غیرفعال است (OPENAI_API_KEY در سرور تنظیم نشده).',
+              'دستیار هوشمند در حال حاضر فعال نیست. لطفاً کمی بعد دوباره بررسی کنید.',
           )
           setLastFailedInput(trimmed)
           onAssistantStateChange('listening')
@@ -228,51 +343,87 @@ export function MrRobotChatPanel({
           return
         }
 
+        // Confirm configured state on successful reply
+        setStatus((prev) => ({
+          ...prev,
+          checked: true,
+          configured: true,
+          checkFailed: false,
+        }))
+
         const assistantReply: UiMessage = {
           id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           role: 'assistant',
           content: payload.reply,
         }
-        setMessages((prev) => [...prev, assistantReply])
+        const updated = [...nextMessages, assistantReply]
+        messagesRef.current = updated
+        setMessages(updated)
         onAssistantStateChange('speaking')
         clearStateTimer()
         stateTimerRef.current = setTimeout(() => {
           onAssistantStateChange('listening')
         }, 2800)
-      } catch {
-        setErrorMessage('اتصال به سرور برقرار نشد. لطفاً اینترنت خود را بررسی کرده و دوباره تلاش کنید.')
+      } catch (err: unknown) {
+        const isAbort = err instanceof DOMException && err.name === 'AbortError'
+        setErrorMessage(
+          isAbort
+            ? 'زمان پاسخ‌گویی دستیار هوشمند به پایان رسید. لطفاً دوباره تلاش کنید.'
+            : 'اتصال به سرور برقرار نشد. لطفاً اینترنت خود را بررسی کرده و دوباره تلاش کنید.',
+        )
         setLastFailedInput(trimmed)
         onAssistantStateChange('listening')
       } finally {
+        clearTimeout(timeoutHandle)
+        if (abortControllerRef.current === controller) {
+          abortControllerRef.current = null
+        }
+        inFlightRef.current = false
         setSending(false)
       }
     },
-    [messages, sending, status.checked, status.configured, onAssistantStateChange, clearStateTimer],
+    [
+      status.checked,
+      status.configured,
+      status.checkFailed,
+      onAssistantStateChange,
+      clearStateTimer,
+    ],
   )
 
   const handleClearConversation = () => {
+    abortControllerRef.current?.abort()
+    abortControllerRef.current = null
+    inFlightRef.current = false
+    setSending(false)
     clearStateTimer()
-    setMessages([createGreetingMessage()])
+    const fresh = [createGreetingMessage()]
+    messagesRef.current = fresh
+    setMessages(fresh)
     setErrorMessage(null)
     setLastFailedInput(null)
     setInput('')
+    try {
+      window.sessionStorage.removeItem(SESSION_HISTORY_KEY)
+    } catch {
+      // ignore
+    }
     onAssistantStateChange('listening')
   }
 
   const handleRetry = () => {
-    if (!lastFailedInput || sending) return
-    // Remove trailing failed user duplicate before re-sending cleanly
-    setMessages((prev) => {
-      const last = prev[prev.length - 1]
-      if (last && last.role === 'user' && last.content === lastFailedInput) {
-        return prev.slice(0, -1)
-      }
-      return prev
-    })
-    void sendMessage(lastFailedInput)
+    if (!lastFailedInput || inFlightRef.current) return
+    void sendMessage(lastFailedInput, { isRetry: true })
   }
 
-  const isUnavailable = status.checked && !status.configured
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault()
+      void sendMessage(input)
+    }
+  }
+
+  const isUnavailable = status.checked && !status.configured && !status.checkFailed
   const hasUserMessages = messages.some((m) => m.role === 'user')
 
   return (
@@ -351,7 +502,10 @@ export function MrRobotChatPanel({
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 dir="ltr" className="truncate font-mono text-sm font-extrabold tracking-wider text-white">
+                  <h2
+                    dir="ltr"
+                    className="truncate font-mono text-sm font-extrabold tracking-wider text-white"
+                  >
                     MR.<span className="text-[#ef1d42]">ROBOT</span> AI
                   </h2>
                 </div>
@@ -374,7 +528,9 @@ export function MrRobotChatPanel({
                           : assistantState === 'speaking'
                             ? 'در حال پاسخ‌گویی'
                             : 'آنلاین'
-                        : 'آفلاین — نیازمند تنظیم سرور'}
+                        : status.checkFailed
+                          ? 'خطا در بررسی اتصال'
+                          : 'موقتاً غیرفعال'}
                   </span>
                 </div>
               </div>
@@ -384,10 +540,9 @@ export function MrRobotChatPanel({
               <button
                 type="button"
                 onClick={handleClearConversation}
-                disabled={sending}
                 aria-label="پاک کردن گفت‌وگو"
                 title="پاک کردن گفت‌وگو"
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-[#a8bad8] transition hover:border-[#ef1d42]/45 hover:text-white disabled:opacity-50"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-[#a8bad8] transition hover:border-[#ef1d42]/45 hover:text-white"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -405,7 +560,7 @@ export function MrRobotChatPanel({
 
           {/* Scrollable Messages & Suggested Questions */}
           <div className="flex-1 space-y-3.5 overflow-y-auto px-4 py-4">
-            {/* Honest AI Unavailable Notice when OPENAI_API_KEY is unset on server */}
+            {/* Clean Persian Unavailable Notice when AI is not configured on server */}
             {isUnavailable ? (
               <div
                 role="status"
@@ -413,17 +568,10 @@ export function MrRobotChatPanel({
                 className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5 text-xs leading-relaxed text-amber-100"
               >
                 <p className="font-bold text-amber-200">
-                  سرویس هوش مصنوعی در حال حاضر فعال نیست
+                  دستیار هوشمند در حال حاضر در دسترس نیست
                 </p>
                 <p className="mt-1 text-amber-100/90">
-                  برای فعال‌سازی پاسخ‌گویی واقعی، کلید{' '}
-                  <code
-                    dir="ltr"
-                    className="rounded bg-black/45 px-1.5 py-0.5 font-mono text-[11px] text-white"
-                  >
-                    OPENAI_API_KEY
-                  </code>{' '}
-                  باید در تنظیمات سرور ثبت شود. سایر بخش‌های فروشگاه، سبد خرید و ثبت سفارش بدون محدودیت فعال هستند.
+                  پاسخ‌گویی خودکار هنوز روی سرور فعال نشده است. می‌توانید تمام محصولات را در فروشگاه ببینید یا مستقیم با تیم پشتیبانی در ارتباط باشید.
                 </p>
                 <div className="mt-2.5 flex flex-wrap gap-2">
                   <Link
@@ -440,6 +588,14 @@ export function MrRobotChatPanel({
                   >
                     ارتباط با پشتیبانی
                   </Link>
+                  <button
+                    type="button"
+                    onClick={() => void refreshStatus()}
+                    className="inline-flex items-center gap-1 rounded-lg border border-amber-400/35 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-500/20"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    <span>بررسی مجدد</span>
+                  </button>
                 </div>
               </div>
             ) : null}
@@ -450,6 +606,7 @@ export function MrRobotChatPanel({
               return (
                 <div
                   key={msg.id}
+                  data-testid={`chat-msg-${msg.role}`}
                   className={`flex items-start gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
                 >
                   {!isUser ? (
@@ -479,8 +636,8 @@ export function MrRobotChatPanel({
               )
             })}
 
-            {/* Suggested Quick Questions (prominent before first user message, compact option otherwise) */}
-            {!hasUserMessages ? (
+            {/* Suggested Quick Questions (prominent before first user message) */}
+            {!hasUserMessages && !isUnavailable ? (
               <div className="space-y-2 pt-1" aria-label="سوالات پیشنهادی">
                 {SUGGESTED_QUESTIONS.map((q) => (
                   <button
@@ -499,7 +656,11 @@ export function MrRobotChatPanel({
 
             {/* Loading Indicator */}
             {sending ? (
-              <div className="flex items-center gap-2.5 text-xs text-[#a8bad8]" role="status">
+              <div
+                data-testid="chat-loading-indicator"
+                className="flex items-center gap-2.5 text-xs text-[#a8bad8]"
+                role="status"
+              >
                 <Loader2 className="h-4 w-4 animate-spin text-[#ef1d42]" />
                 <span>MR.ROBOT در حال بررسی و نوشتن پاسخ...</span>
               </div>
@@ -509,6 +670,7 @@ export function MrRobotChatPanel({
             {errorMessage ? (
               <div
                 role="alert"
+                data-testid="chat-error-alert"
                 className="rounded-xl border border-[#ef1d42]/45 bg-[#ef1d42]/12 p-3 text-xs text-red-100"
               >
                 <div className="flex items-start gap-2">
@@ -518,6 +680,7 @@ export function MrRobotChatPanel({
                 {lastFailedInput && !isUnavailable ? (
                   <button
                     type="button"
+                    data-testid="chat-retry-btn"
                     onClick={handleRetry}
                     className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg border border-[#ef1d42]/50 bg-[#ef1d42]/20 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#ef1d42]/35"
                   >
@@ -531,7 +694,7 @@ export function MrRobotChatPanel({
             <div ref={listEndRef} />
           </div>
 
-          {/* RTL Input Footer with mobile safe-area inset */}
+          {/* RTL Multiline Input Footer (Enter sends, Shift+Enter adds newline) */}
           <form
             onSubmit={(e) => {
               e.preventDefault()
@@ -539,14 +702,15 @@ export function MrRobotChatPanel({
             }}
             className="shrink-0 border-t border-[#ef1d42]/20 bg-[#080d1a] px-3.5 pt-3 pb-[max(14px,env(safe-area-inset-bottom))]"
           >
-            <div className="flex items-center gap-2">
-              <input
-                ref={inputRef}
-                type="text"
+            <div className="flex items-end gap-2">
+              <textarea
+                ref={textareaRef}
+                rows={1}
                 dir="auto"
                 value={input}
                 maxLength={1200}
                 disabled={sending || isUnavailable}
+                onKeyDown={handleKeyDown}
                 onChange={(e) => {
                   setInput(e.target.value)
                   if (!sending && open) {
@@ -555,11 +719,11 @@ export function MrRobotChatPanel({
                 }}
                 placeholder={
                   isUnavailable
-                    ? 'سرویس هوش مصنوعی غیرفعال است'
+                    ? 'دستیار هوشمند موقتاً غیرفعال است'
                     : 'پیام خود را بنویسید...'
                 }
                 aria-label="متن پیام به دستیار هوشمند MR.ROBOT"
-                className="min-h-[44px] flex-1 rounded-xl border border-white/12 bg-[#040711] px-3.5 py-2.5 text-sm text-white placeholder:text-[#7c92b8] focus:border-[#ef1d42]/70 focus:outline-none disabled:cursor-not-allowed disabled:opacity-55"
+                className="max-h-[116px] min-h-[44px] flex-1 resize-none rounded-xl border border-white/12 bg-[#040711] px-3.5 py-2.5 text-sm leading-6 text-white placeholder:text-[#7c92b8] focus:border-[#ef1d42]/70 focus:outline-none disabled:cursor-not-allowed disabled:opacity-55"
               />
               <button
                 type="submit"
