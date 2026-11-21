@@ -1,27 +1,81 @@
 import { z } from 'zod'
 
-const fieldDefSchema = z.object({
-  id: z.string().min(1).max(40).regex(/^[a-z0-9_-]+$/i),
-  label: z.string().min(1).max(120),
+export const purchaseFieldDefSchema = z.object({
+  id: z.string().trim().min(1).max(40).regex(/^[a-z0-9_-]+$/i),
+  label: z.string().trim().min(1).max(120),
   type: z.enum(['text', 'textarea', 'email']),
   required: z.boolean().optional().default(false),
   maxLength: z.number().int().min(1).max(2000).optional().default(500),
 })
 
-export type PurchaseFieldDef = z.infer<typeof fieldDefSchema>
+export type PurchaseFieldDef = z.infer<typeof purchaseFieldDefSchema>
 
-export function parseProductPurchaseFields(json: string): PurchaseFieldDef[] {
+export function parseProductPurchaseFields(json: string | null | undefined): PurchaseFieldDef[] {
   try {
     const raw = JSON.parse(json || '[]')
     if (!Array.isArray(raw)) return []
     const out: PurchaseFieldDef[] = []
     for (const row of raw) {
-      const parsed = fieldDefSchema.safeParse(row)
+      const parsed = purchaseFieldDefSchema.safeParse(row)
       if (parsed.success) out.push(parsed.data)
     }
     return out
   } catch {
     return []
+  }
+}
+
+export function validateProductPurchaseFieldsJson(
+  raw: string | null | undefined,
+): { ok: true; fields: PurchaseFieldDef[]; json: string } | { ok: false; error: string } {
+  const trimmed = (raw ?? '').trim()
+  if (!trimmed) {
+    return { ok: true, fields: [], json: '[]' }
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(trimmed)
+  } catch {
+    return {
+      ok: false,
+      error: 'فیلدهای اختصاصی خرید باید یک آرایه JSON معتبر باشند.',
+    }
+  }
+
+  if (!Array.isArray(parsed)) {
+    return {
+      ok: false,
+      error: 'فیلدهای اختصاصی خرید باید یک آرایه JSON معتبر باشند.',
+    }
+  }
+
+  const schema = z.array(purchaseFieldDefSchema).max(20)
+  const validated = schema.safeParse(parsed)
+  if (!validated.success) {
+    return {
+      ok: false,
+      error:
+        'ساختار یکی از فیلدهای اختصاصی خرید معتبر نیست. شناسه انگلیسی (فقط حروف/اعداد انگلیسی، _ و -)، عنوان فارسی و نوع مجاز (text، textarea، email) را بررسی کنید.',
+    }
+  }
+
+  const seenIds = new Set<string>()
+  for (const field of validated.data) {
+    const key = field.id.toLowerCase()
+    if (seenIds.has(key)) {
+      return {
+        ok: false,
+        error: `شناسه فیلد خرید «${field.id}» تکراری است.`,
+      }
+    }
+    seenIds.add(key)
+  }
+
+  return {
+    ok: true,
+    fields: validated.data,
+    json: JSON.stringify(validated.data),
   }
 }
 

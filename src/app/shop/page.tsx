@@ -8,19 +8,10 @@ import {
   ShopCatalogClient,
   type ShopCatalogCategoryGroup,
 } from '@/components/shop/ShopCatalogClient'
+import { parseStringListJson } from '@/lib/product-list-fields'
 
 function parseFeaturePreview(json: string): string[] {
-  try {
-    const parsed = JSON.parse(json)
-    if (Array.isArray(parsed)) {
-      return parsed
-        .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
-        .slice(0, 2)
-    }
-  } catch {
-    return []
-  }
-  return []
+  return parseStringListJson(json).slice(0, 2)
 }
 
 export default async function ShopPage() {

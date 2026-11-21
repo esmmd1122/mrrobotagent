@@ -106,11 +106,21 @@ export async function POST(req: Request) {
         { status: 503 },
       )
     }
+    if (code === 'CLOUDINARY_PERMISSION_DENIED') {
+      return NextResponse.json(
+        {
+          error:
+            'کلید API حساب Cloudinary مجوز آپلود در این پوشه را ندارد (برای مثال نقش Media Library User بدون دسترسی پوشه). در Cloudinary نقش کلید API را به Admin/Master Admin ارتقا دهید یا دسترسی آپلود پوشه را فعال کنید.',
+          code,
+        },
+        { status: 403 },
+      )
+    }
     if (code === 'CLOUDINARY_AUTH_FAILED') {
       return NextResponse.json(
         {
           error:
-            'احراز هویت Cloudinary ناموفق بود. صحت CLOUDINARY_API_KEY و CLOUDINARY_API_SECRET را در تنظیمات سرور بررسی کنید.',
+            'احراز هویت Cloudinary ناموفق بود. صحت CLOUDINARY_CLOUD_NAME، CLOUDINARY_API_KEY و CLOUDINARY_API_SECRET و تعلق آن‌ها به یک Product Environment را در تنظیمات سرور بررسی کنید.',
           code,
         },
         { status: 502 },

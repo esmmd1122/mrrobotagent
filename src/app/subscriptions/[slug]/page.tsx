@@ -20,6 +20,7 @@ import { resolveProductDisplayPrice } from '@/modules/commerce/display-price'
 import { formatStoreMoney } from '@/modules/commerce/money'
 import { resolveStorefrontErrorMessage } from '@/modules/commerce/error-messages'
 import { buildProductFaqItems } from '@/modules/commerce/storefront-presenters'
+import { parseStringListJson } from '@/lib/product-list-fields'
 
 type Props = {
   params: Promise<{ slug: string }>
@@ -58,21 +59,8 @@ export default async function SubscriptionDetailPage({ params, searchParams }: P
   ])
   if (!product) notFound()
 
-  let details: string[] = []
-  let features: string[] = []
-  try {
-    const parsedDetails = JSON.parse(product.detailsJson)
-    const parsedFeatures = JSON.parse(product.featuresJson)
-    details = Array.isArray(parsedDetails)
-      ? parsedDetails.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
-      : []
-    features = Array.isArray(parsedFeatures)
-      ? parsedFeatures.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
-      : []
-  } catch {
-    details = []
-    features = []
-  }
+  const details = parseStringListJson(product.detailsJson)
+  const features = parseStringListJson(product.featuresJson)
 
   const purchasable = isProductPurchasable({
     price: product.price,

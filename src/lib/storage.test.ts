@@ -8,7 +8,7 @@ import {
   sanitizeUploadFolder,
   validateImagePayload,
 } from './storage-validation.ts'
-import { uploadToCloudinary } from './storage.ts'
+import { getSafeCloudinaryDiagnostics, uploadToCloudinary } from './storage.ts'
 
 const PNG_HEADER = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d])
 const JPEG_HEADER = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01])
@@ -244,6 +244,61 @@ test('uploadToCloudinary signs request with trimmed env vars, validates secure_u
       /CLOUDINARY_AUTH_FAILED/,
     )
 
+    // 403 Forbidden (e.g. Media Library User API key lacking folder write role) -> CLOUDINARY_PERMISSION_DENIED
+    const loggedCalls: unknown[][] = []
+    const originalConsoleError = console.error
+    console.error = (...args: unknown[]) => {
+      loggedCalls.push(args)
+    }
+    try {
+      globalThis.fetch = (async () =>
+        new Response(
+          JSON.stringify({
+            error: { message: 'Not allowed to upload to folder with key key-secret-999' },
+          }),
+          {
+            status: 403,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Cld-Error': 'Insufficient permissions for folder mr-robot/products',
+            },
+          },
+        )) as typeof fetch
+
+      await assert.rejects(
+        () =>
+          uploadToCloudinary(Buffer.from(PNG_HEADER), 'products', 'image/png', 'png', {
+            CLOUDINARY_CLOUD_NAME: 'demo-cloud',
+            CLOUDINARY_API_KEY: 'key-secret-999',
+            CLOUDINARY_API_SECRET: 'super-secret-value',
+          }),
+        /CLOUDINARY_PERMISSION_DENIED/,
+      )
+
+      const serializedLog = JSON.stringify(loggedCalls)
+      assert.equal(serializedLog.includes('key-secret-999'), false)
+      assert.equal(serializedLog.includes('super-secret-value'), false)
+      assert.equal(serializedLog.includes('Insufficient permissions'), true)
+
+      // 401 with explicit permission/not-allowed error -> CLOUDINARY_PERMISSION_DENIED
+      globalThis.fetch = (async () =>
+        new Response(JSON.stringify({ error: { message: 'Not allowed' } }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        })) as typeof fetch
+      await assert.rejects(
+        () =>
+          uploadToCloudinary(Buffer.from(PNG_HEADER), 'products', 'image/png', 'png', {
+            CLOUDINARY_CLOUD_NAME: 'demo-cloud',
+            CLOUDINARY_API_KEY: 'key-123',
+            CLOUDINARY_API_SECRET: 'secret-xyz',
+          }),
+        /CLOUDINARY_PERMISSION_DENIED/,
+      )
+    } finally {
+      console.error = originalConsoleError
+    }
+
     // Mismatched secure_url cloud -> CLOUDINARY_INVALID_URL
     globalThis.fetch = (async () =>
       new Response(
@@ -264,4 +319,28 @@ test('uploadToCloudinary signs request with trimmed env vars, validates secure_u
   } finally {
     globalThis.fetch = originalFetch
   }
+})
+
+test('getSafeCloudinaryDiagnostics reports boolean configuration state without exposing any secret values', () => {
+  const diag = getSafeCloudinaryDiagnostics({
+    CLOUDINARY_CLOUD_NAME: 'k6sw7yrg',
+    CLOUDINARY_API_KEY: ' 123456789012345 ',
+    CLOUDINARY_API_SECRET: '"very-secret-token"',
+    CLOUDINARY_URL: 'cloudinary://123456789012345:very-secret-token@k6sw7yrg',
+  })
+
+  assert.equal(diag.activeProvider, 'cloudinary')
+  assert.equal(diag.hasCloudName, true)
+  assert.equal(diag.hasApiKey, true)
+  assert.equal(diag.hasApiSecret, true)
+  assert.equal(diag.hasCloudinaryUrlVar, true)
+  assert.equal(diag.hasCompleteS3, false)
+  assert.equal(diag.cloudNameHadPaddingOrQuotes, false)
+  assert.equal(diag.apiKeyHadPaddingOrQuotes, true)
+  assert.equal(diag.apiSecretHadPaddingOrQuotes, true)
+
+  const serialized = JSON.stringify(diag)
+  assert.equal(serialized.includes('k6sw7yrg'), false)
+  assert.equal(serialized.includes('123456789012345'), false)
+  assert.equal(serialized.includes('very-secret-token'), false)
 })

@@ -1,4 +1,5 @@
 import type { PublicProduct } from '@/lib/catalog'
+import { parseStringListJson } from '@/lib/product-list-fields'
 
 export type StorefrontProductPlan = {
   id: string
@@ -32,18 +33,8 @@ export type StorefrontProduct = {
 }
 
 export function mapStorefrontProduct(p: PublicProduct): StorefrontProduct {
-  let details: string[] = []
-  let features: string[] = []
-  try {
-    details = JSON.parse(p.detailsJson)
-  } catch {
-    details = []
-  }
-  try {
-    features = JSON.parse(p.featuresJson)
-  } catch {
-    features = []
-  }
+  const details = parseStringListJson(p.detailsJson)
+  const features = parseStringListJson(p.featuresJson)
   return {
     id: p.id,
     slug: p.slug,

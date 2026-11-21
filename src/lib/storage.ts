@@ -66,6 +66,72 @@ async function uploadToS3(bytes: Buffer, key: string, mime: AllowedImageMime): P
   return `${base}/${key}`
 }
 
+export type SafeCloudinaryDiagnostics = {
+  activeProvider: StorageProviderStatus['provider']
+  hasCloudName: boolean
+  hasApiKey: boolean
+  hasApiSecret: boolean
+  hasCloudinaryUrlVar: boolean
+  hasCompleteS3: boolean
+  cloudNameHadPaddingOrQuotes: boolean
+  apiKeyHadPaddingOrQuotes: boolean
+  apiSecretHadPaddingOrQuotes: boolean
+}
+
+function hadPaddingOrQuotes(raw: string | undefined): boolean {
+  if (!raw) return false
+  const trimmed = raw.trim()
+  if (trimmed !== raw) return true
+  return (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  )
+}
+
+/**
+ * Returns strictly non-secret boolean diagnostics for server logs.
+ * Never exposes credential values, prefixes, lengths, or CLOUDINARY_URL contents.
+ */
+export function getSafeCloudinaryDiagnostics(
+  env: NodeJS.ProcessEnv = process.env,
+): SafeCloudinaryDiagnostics {
+  const status = resolveStorageProviderStatus(env, isProductionRuntime())
+  const hasCompleteS3 = Boolean(
+    env.S3_BUCKET?.trim() &&
+      env.S3_ACCESS_KEY_ID?.trim() &&
+      env.S3_SECRET_ACCESS_KEY?.trim() &&
+      env.S3_PUBLIC_BASE_URL?.trim(),
+  )
+  return {
+    activeProvider: status.provider,
+    hasCloudName: Boolean(env.CLOUDINARY_CLOUD_NAME?.trim()),
+    hasApiKey: Boolean(env.CLOUDINARY_API_KEY?.trim()),
+    hasApiSecret: Boolean(env.CLOUDINARY_API_SECRET?.trim()),
+    hasCloudinaryUrlVar: Boolean(env.CLOUDINARY_URL?.trim()),
+    hasCompleteS3,
+    cloudNameHadPaddingOrQuotes: hadPaddingOrQuotes(env.CLOUDINARY_CLOUD_NAME),
+    apiKeyHadPaddingOrQuotes: hadPaddingOrQuotes(env.CLOUDINARY_API_KEY),
+    apiSecretHadPaddingOrQuotes: hadPaddingOrQuotes(env.CLOUDINARY_API_SECRET),
+  }
+}
+
+function sanitizeProviderErrorText(
+  raw: string | null | undefined,
+  secrets: string[],
+): string {
+  if (!raw) return ''
+  let text = raw.replace(/[\r\n\t]+/g, ' ').trim()
+  for (const secret of secrets) {
+    if (secret && secret.length >= 4) {
+      text = text.split(secret).join('[REDACTED]')
+    }
+  }
+  return text.slice(0, 220)
+}
+
+const CLOUDINARY_PERMISSION_MSG_RE =
+  /\b(not allowed|insufficient permissions?|permission denied|forbidden|access denied)\b/i
+
 export async function uploadToCloudinary(
   bytes: Buffer,
   folder: string,
@@ -112,9 +178,26 @@ export async function uploadToCloudinary(
 
   if (!res.ok) {
     const errBody = (await res.json().catch(() => null)) as { error?: { message?: string } } | null
-    const providerReason = errBody?.error?.message?.slice(0, 200) || `HTTP ${res.status}`
-    console.error(`[storage/cloudinary] upload failed (${res.status}): ${providerReason}`)
-    if (res.status === 401 || res.status === 403) {
+    const secretsToRedact = [apiKey, apiSecret, signature]
+    const providerMessage = sanitizeProviderErrorText(errBody?.error?.message, secretsToRedact)
+    const cldError = sanitizeProviderErrorText(res.headers.get('x-cld-error'), secretsToRedact)
+    const combinedReason = `${providerMessage} ${cldError}`.trim()
+
+    console.error('[storage/cloudinary] upload failed', {
+      status: res.status,
+      cldError: cldError || null,
+      providerMessage: providerMessage || null,
+      folder: cloudFolder,
+      diagnostics: getSafeCloudinaryDiagnostics(env),
+    })
+
+    if (res.status === 403) {
+      throw new Error('CLOUDINARY_PERMISSION_DENIED')
+    }
+    if (res.status === 401) {
+      if (CLOUDINARY_PERMISSION_MSG_RE.test(combinedReason)) {
+        throw new Error('CLOUDINARY_PERMISSION_DENIED')
+      }
       throw new Error('CLOUDINARY_AUTH_FAILED')
     }
     if (res.status === 404) {

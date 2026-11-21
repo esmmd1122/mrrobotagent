@@ -9,6 +9,8 @@ import { PERMISSIONS } from '@/lib/auth/constants'
 import { logActivity } from '@/lib/activity'
 import { STORE_CURRENCY_CODE } from '@/modules/commerce/money'
 import { normalizeAndValidateProductImageUrl } from '@/lib/storage-validation'
+import { validateProductStringListJson } from '@/lib/product-list-fields'
+import { validateProductPurchaseFieldsJson } from '@/modules/commerce/purchase-fields'
 
 export type ProductActionState = {
   ok: false
@@ -31,9 +33,9 @@ const productSchema = z.object({
   nameFa: z.string().trim().min(2, 'نام فارسی محصول باید حداقل ۲ کاراکتر باشد.'),
   nameEn: z.string().optional(),
   description: z.string().trim().min(5, 'توضیح محصول باید حداقل ۵ کاراکتر باشد.'),
-  detailsJson: z.string(),
-  featuresJson: z.string(),
-  purchaseFieldsJson: z.string().optional(),
+  detailsJson: z.string().optional().default('[]'),
+  featuresJson: z.string().optional().default('[]'),
+  purchaseFieldsJson: z.string().optional().default('[]'),
   price: optionalMoney,
   promoPrice: optionalMoney,
   imageUrl: z.string().optional(),
@@ -42,14 +44,6 @@ const productSchema = z.object({
   isVisible: z.coerce.boolean(),
   sortOrder: z.coerce.number().int(),
 })
-
-function isValidJsonArray(raw: string): boolean {
-  try {
-    return Array.isArray(JSON.parse(raw))
-  } catch {
-    return false
-  }
-}
 
 export async function createProduct(
   _prevState: ProductActionState,
@@ -113,31 +107,48 @@ async function saveProduct(
     }
   }
 
-  const detailsJson = parsed.data.detailsJson.trim() || '[]'
-  if (!isValidJsonArray(detailsJson)) {
-    const msg = 'فیلد جزئیات محصول باید یک آرایه JSON معتبر باشد (مثلاً ["مورد ۱"]).'
-    return { ok: false, error: msg, fieldErrors: { detailsJson: msg } }
+  const detailsValidation = validateProductStringListJson(
+    parsed.data.detailsJson,
+    'جزئیات محصول',
+  )
+  if (!detailsValidation.ok) {
+    return {
+      ok: false,
+      error: detailsValidation.error,
+      fieldErrors: { detailsJson: detailsValidation.error },
+    }
   }
 
-  const featuresJson = parsed.data.featuresJson.trim() || '[]'
-  if (!isValidJsonArray(featuresJson)) {
-    const msg = 'فیلد ویژگی‌ها و مزایا باید یک آرایه JSON معتبر باشد.'
-    return { ok: false, error: msg, fieldErrors: { featuresJson: msg } }
+  const featuresValidation = validateProductStringListJson(
+    parsed.data.featuresJson,
+    'ویژگی‌ها و مزایا',
+  )
+  if (!featuresValidation.ok) {
+    return {
+      ok: false,
+      error: featuresValidation.error,
+      fieldErrors: { featuresJson: featuresValidation.error },
+    }
   }
 
-  const purchaseFieldsJson = parsed.data.purchaseFieldsJson?.trim() || '[]'
-  if (!isValidJsonArray(purchaseFieldsJson)) {
-    const msg = 'فیلدهای اختصاصی خرید باید یک آرایه JSON معتبر باشد.'
-    return { ok: false, error: msg, fieldErrors: { purchaseFieldsJson: msg } }
+  const purchaseFieldsValidation = validateProductPurchaseFieldsJson(
+    parsed.data.purchaseFieldsJson,
+  )
+  if (!purchaseFieldsValidation.ok) {
+    return {
+      ok: false,
+      error: purchaseFieldsValidation.error,
+      fieldErrors: { purchaseFieldsJson: purchaseFieldsValidation.error },
+    }
   }
 
   const data = {
     ...parsed.data,
     nameEn: parsed.data.nameEn?.trim() || null,
-    detailsJson,
-    featuresJson,
+    detailsJson: detailsValidation.json,
+    featuresJson: featuresValidation.json,
     imageUrl: imageValidation.url,
-    purchaseFieldsJson,
+    purchaseFieldsJson: purchaseFieldsValidation.json,
     currency: STORE_CURRENCY_CODE,
   }
 
