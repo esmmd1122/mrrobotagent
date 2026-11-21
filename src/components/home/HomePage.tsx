@@ -12,6 +12,8 @@ import {
 } from '@/components/cinema/engine/ProductShowcase3D'
 import { GlbModelModal } from '@/components/cinema/GlbModelModal'
 import { ServiceRequestModal } from '@/components/cinema/ServiceRequestModal'
+import { MrRobotChatPanel } from '@/components/ai/MrRobotChatPanel'
+import type { AssistantAnimState } from '@/components/cinema/engine/character/assistant-state'
 import { PageLoader } from '@/components/home/PageLoader'
 import { Hero } from '@/components/home/Hero'
 import {
@@ -51,6 +53,8 @@ export function HomePage({ products, categories, aiOfferings, site }: Props) {
   const [glbOpen, setGlbOpen] = useState(false)
   const [characterMeta, setCharacterMeta] = useState<CharacterAssetMetadata | null>(null)
   const [inspectedSlug, setInspectedSlug] = useState<string | null>(null)
+  const [chatOpen, setChatOpen] = useState(false)
+  const [assistantState, setAssistantState] = useState<AssistantAnimState>('idle')
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -69,6 +73,16 @@ export function HomePage({ products, categories, aiOfferings, site }: Props) {
 
   const openGlbModal = useCallback(() => {
     setGlbOpen(true)
+  }, [])
+
+  const handleOpenAssistant = useCallback(() => {
+    stageRef.current?.triggerCharacterAttention(1.35)
+    setChatOpen(true)
+  }, [])
+
+  const handleCloseAssistant = useCallback(() => {
+    setChatOpen(false)
+    setAssistantState('idle')
   }, [])
 
   // Register live Cinema controls into global Navbar bridge while on homepage
@@ -125,9 +139,12 @@ export function HomePage({ products, categories, aiOfferings, site }: Props) {
         ref={stageRef}
         reducedMotion={reducedMotion}
         initialArtifact={initialArtifact}
+        chatOpen={chatOpen}
+        assistantState={assistantState}
         onActiveSceneChange={(_idx, id) => setActiveSceneId(id)}
         onReady={() => setStageReady(true)}
         onCharacterMetaChange={setCharacterMeta}
+        onCharacterClick={handleOpenAssistant}
       />
 
       <ChapterRail
@@ -170,6 +187,7 @@ export function HomePage({ products, categories, aiOfferings, site }: Props) {
           products={products}
           onPulseEyes={handlePulseEyes}
           onOpenRequest={handleOpenRequest}
+          onOpenAssistant={handleOpenAssistant}
         />
 
         {/* Scene 06: Apple & Mobile Services */}
@@ -187,6 +205,14 @@ export function HomePage({ products, categories, aiOfferings, site }: Props) {
         {/* Scene 08: Final Brand Finale */}
         <FinaleSection onOpenRequest={handleOpenRequest} />
       </div>
+
+      <MrRobotChatPanel
+        open={chatOpen}
+        assistantState={assistantState}
+        onOpen={handleOpenAssistant}
+        onClose={handleCloseAssistant}
+        onAssistantStateChange={setAssistantState}
+      />
 
       <ServiceRequestModal
         open={requestOpen}

@@ -11,7 +11,12 @@ type Props = {
   onOpenRequest: (subject: string) => void
 }
 
-export function Hero({ hero, productCount, categoryCount, onOpenRequest }: Props) {
+export function Hero({
+  hero,
+  productCount,
+  categoryCount,
+  onOpenRequest,
+}: Props) {
   const leadCopy =
     hero.subtitle && hero.subtitle.trim().length > 20
       ? hero.subtitle
@@ -95,8 +100,8 @@ export function Hero({ hero, productCount, categoryCount, onOpenRequest }: Props
             </div>
           </div>
 
-          {/* Left side intentionally frames the sculptural 3D MR.ROBOT mascot on desktop */}
-          <div className="cinema-hero-spacer" aria-hidden="true" />
+          {/* Left side frames the official clickable 3D MR.ROBOT mascot completely unobstructed */}
+          <div className="cinema-hero-spacer hidden min-h-[420px] lg:block" aria-hidden="true" />
         </div>
       </div>
 

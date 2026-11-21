@@ -110,6 +110,122 @@ export function createChestPrintTexture(): THREE.CanvasTexture {
   return tex
 }
 
+/**
+ * Draws the official MR.ROBOT sharp 3-pointed geometric crown emblem onto a 2D canvas.
+ */
+function drawOfficialCrownPath(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  scale: number,
+) {
+  ctx.save()
+  ctx.translate(cx, cy)
+  ctx.scale(scale, scale)
+
+  // Three-pointed sharp geometric crown body
+  ctx.beginPath()
+  ctx.moveTo(-78, 34)
+  ctx.lineTo(-92, -38)
+  ctx.lineTo(-36, -2)
+  ctx.lineTo(0, -68)
+  ctx.lineTo(36, -2)
+  ctx.lineTo(92, -38)
+  ctx.lineTo(78, 34)
+  ctx.closePath()
+  ctx.stroke()
+
+  // Inner sharp crown peak highlight
+  ctx.beginPath()
+  ctx.moveTo(-64, 18)
+  ctx.lineTo(64, 18)
+  ctx.stroke()
+
+  // Solid base bar under the crown
+  ctx.fillRect(-76, 46, 152, 16)
+  ctx.restore()
+}
+
+export function createEarCupCrownTexture(): THREE.CanvasTexture {
+  const size = 512
+  const c = document.createElement('canvas')
+  c.width = size
+  c.height = size
+  const ctx = c.getContext('2d')!
+
+  // Deep obsidian anodized ear-cup face
+  const grad = ctx.createRadialGradient(size / 2, size / 2, 24, size / 2, size / 2, size / 2)
+  grad.addColorStop(0, '#13161f')
+  grad.addColorStop(0.7, '#08090e')
+  grad.addColorStop(1, '#040508')
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, size, size)
+
+  // Subtle concentric brushed micro-grooves
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)'
+  ctx.lineWidth = 2
+  for (let r = 36; r < 230; r += 16) {
+    ctx.beginPath()
+    ctx.arc(size / 2, size / 2, r, 0, Math.PI * 2)
+    ctx.stroke()
+  }
+
+  // Glowing crimson official crown emblem
+  ctx.shadowColor = '#ff163d'
+  ctx.shadowBlur = 18
+  ctx.strokeStyle = '#ff2348'
+  ctx.fillStyle = '#ff2348'
+  ctx.lineWidth = 14
+  ctx.lineJoin = 'miter'
+  drawOfficialCrownPath(ctx, size / 2, size / 2 + 4, 1.05)
+
+  const tex = new THREE.CanvasTexture(c)
+  tex.anisotropy = 8
+  tex.colorSpace = THREE.SRGBColorSpace
+  return tex
+}
+
+export function createSleevePatchTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas')
+  c.width = 512
+  c.height = 512
+  const ctx = c.getContext('2d')!
+  ctx.clearRect(0, 0, 512, 512)
+
+  // Tactical woven black patch rectangle with crimson trim
+  ctx.fillStyle = '#090a0f'
+  ctx.strokeStyle = '#ef1d42'
+  ctx.lineWidth = 8
+  ctx.beginPath()
+  ctx.roundRect(42, 118, 428, 134, 14)
+  ctx.fill()
+  ctx.stroke()
+
+  // Subtle inner stitched border
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)'
+  ctx.lineWidth = 2
+  ctx.strokeRect(56, 132, 400, 106)
+
+  // Official MR.ROBOT sleeve typography
+  ctx.font = '800 62px "Space Grotesk", sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = '#ef1d42'
+  ctx.fillText('MR.', 136, 186)
+  ctx.fillStyle = '#f4f7fd'
+  ctx.fillText('ROBOT', 318, 186)
+
+  // Two parallel crimson tactical stripes below the sleeve patch
+  ctx.fillStyle = '#d81b3d'
+  ctx.fillRect(68, 298, 376, 22)
+  ctx.fillRect(68, 342, 376, 22)
+
+  const tex = new THREE.CanvasTexture(c)
+  tex.anisotropy = 8
+  tex.colorSpace = THREE.SRGBColorSpace
+  return tex
+}
+
 export function createStudioFloorTextures(): THREE.CanvasTexture {
   const size = 1024
   const c = document.createElement('canvas')

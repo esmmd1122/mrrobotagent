@@ -20,6 +20,7 @@ type Props = {
   description?: string
   onPulseEyes: () => void
   onOpenRequest: (subject: string) => void
+  onOpenAssistant?: () => void
 }
 
 type ResolvedIntent = {
@@ -37,6 +38,7 @@ export function AIServicesSection({
   products,
   onPulseEyes,
   onOpenRequest,
+  onOpenAssistant,
 }: Props) {
   const { addItem, isLoading } = useCart()
 
@@ -198,10 +200,22 @@ export function AIServicesSection({
                       ثبت درخواست پیاده‌سازی AI
                     </button>
 
-                    <Link href="/chat" className="cinema-btn cinema-btn-subtle">
-                      <MessageSquareCode className="h-4 w-4 text-[#38bdf8]" />
-                      <span>گفتگو در صفحه AI</span>
-                    </Link>
+                    {onOpenAssistant ? (
+                      <button
+                        type="button"
+                        onClick={onOpenAssistant}
+                        data-ai-chat-trigger="true"
+                        className="cinema-btn cinema-btn-subtle"
+                      >
+                        <MessageSquareCode className="h-4 w-4 text-[#ef1d42]" />
+                        <span>گفتگو با MR.ROBOT AI</span>
+                      </button>
+                    ) : (
+                      <Link href="/chat" className="cinema-btn cinema-btn-subtle">
+                        <MessageSquareCode className="h-4 w-4 text-[#38bdf8]" />
+                        <span>گفتگو در صفحه AI</span>
+                      </Link>
+                    )}
                   </div>
                 </div>
               </div>

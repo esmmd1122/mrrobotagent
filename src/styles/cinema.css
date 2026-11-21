@@ -1667,3 +1667,7 @@ body:has(.mr-cinema-shell) {
     animation: none;
   }
 }
+
+body.mr-mascot-hover {
+  cursor: pointer;
+}
