@@ -10,6 +10,7 @@ export async function getDashboardStats() {
     pendingFulfillment,
     totalCustomers,
     totalProducts,
+    activeProducts,
     revenueAgg,
     recentOrders,
     recentCustomers,
@@ -31,6 +32,7 @@ export async function getDashboardStats() {
       },
     }),
     prisma.customer.count(),
+    prisma.product.count(),
     prisma.product.count({ where: { isVisible: true } }),
     prisma.order.aggregate({
       where: { paymentStatus: 'PAID' },
@@ -91,6 +93,7 @@ export async function getDashboardStats() {
     pendingFulfillment,
     totalCustomers,
     totalProducts,
+    activeProducts,
     totalRevenue: revenueAgg._sum.totalAmount ?? 0,
     recentOrders,
     recentCustomers,

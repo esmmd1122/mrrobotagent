@@ -39,19 +39,31 @@ const jetbrainsMono = JetBrains_Mono({
 
 export async function generateMetadata(): Promise<Metadata> {
   const config = await getActiveWebsiteConfig()
+  const title = config.seo.homeTitle || 'MR.ROBOT | فناوری دیجیتال، هوش مصنوعی و خدمات تخصصی'
+  const description =
+    config.seo.homeDescription ||
+    'مرجع تخصصی اشتراک‌های هوش مصنوعی، سرویس‌های امن VPN و V2Ray، خدمات اپل و تعمیرات موبایل و محصولات دیجیتال MR.ROBOT.'
+  const ogImages = config.seo.ogImageUrl
+    ? [
+        {
+          url: config.seo.ogImageUrl,
+          alt: config.seo.ogImageAlt || title,
+        },
+      ]
+    : undefined
+
   return {
     title: {
-      default: config.seo.homeTitle || 'MR.ROBOT | فناوری دیجیتال، هوش مصنوعی و خدمات تخصصی',
+      default: title,
       template: '%s | MR.ROBOT',
     },
-    description:
-      config.seo.homeDescription ||
-      'مرجع تخصصی اشتراک‌های هوش مصنوعی، سرویس‌های امن VPN و V2Ray، خدمات اپل و تعمیرات موبایل و محصولات دیجیتال MR.ROBOT.',
+    description,
     openGraph: {
-      title: 'MR.ROBOT',
-      description: config.hero.subtitle,
+      title,
+      description: config.seo.homeDescription || config.hero.subtitle,
       locale: 'fa_IR',
       type: 'website',
+      ...(ogImages ? { images: ogImages } : {}),
     },
   }
 }

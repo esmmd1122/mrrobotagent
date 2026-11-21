@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCart } from '@/components/cart/CartProvider'
 import { ChapterRail } from '@/components/cinema/ChapterRail'
 import type { CinemaStageHandle } from '@/components/cinema/CinemaStage'
@@ -27,6 +27,7 @@ import { AIServicesSection } from '@/components/home/AIServicesSection'
 import { OtherServicesSection } from '@/components/home/OtherServicesSection'
 import type { StorefrontProduct } from '@/lib/mappers/product'
 import type { WebsiteConfig } from '@/lib/site-config/types'
+import { normalizeSections } from '@/lib/site-config/cms-helpers'
 import type { HomeAIOffering, HomeCategoryItem } from './product-helpers'
 
 const CinemaStage = dynamic(
@@ -55,6 +56,24 @@ export function HomePage({ products, categories, aiOfferings, site }: Props) {
   const [inspectedSlug, setInspectedSlug] = useState<string | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
   const [assistantState, setAssistantState] = useState<AssistantAnimState>('idle')
+
+  // Order products prioritizing CMS-selected featuredProductSlugs while keeping all real products
+  const orderedProducts = useMemo(() => {
+    const featuredSlugs = site.hero.featuredProductSlugs ?? []
+    if (featuredSlugs.length === 0) return products
+    const priority = new Map<string, number>()
+    featuredSlugs.forEach((slug, idx) => priority.set(slug, idx))
+    return [...products].sort((a, b) => {
+      const pa = priority.has(a.slug) ? priority.get(a.slug)! : Number.MAX_SAFE_INTEGER
+      const pb = priority.has(b.slug) ? priority.get(b.slug)! : Number.MAX_SAFE_INTEGER
+      return pa - pb
+    })
+  }, [products, site.hero.featuredProductSlugs])
+
+  const orderedSections = useMemo(
+    () => normalizeSections(site.sections),
+    [site.sections],
+  )
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -123,11 +142,11 @@ export function HomePage({ products, categories, aiOfferings, site }: Props) {
     )
   }, [])
 
-  const initialArtifact: ArtifactKey = products[0]
+  const initialArtifact: ArtifactKey = orderedProducts[0]
     ? resolveArtifactKey(
-        products[0].slug,
-        products[0].categorySlug,
-        products[0].nameEn,
+        orderedProducts[0].slug,
+        orderedProducts[0].categorySlug,
+        orderedProducts[0].nameEn,
       )
     : 'aiCore'
 
@@ -154,56 +173,113 @@ export function HomePage({ products, categories, aiOfferings, site }: Props) {
 
       <div className="cinema-story-main">
         {/* Scene 01: Hero */}
-        <Hero
-          hero={site.hero}
-          productCount={products.length}
-          categoryCount={categories.length}
-          onOpenRequest={handleOpenRequest}
-        />
+        {site.hero.enabled !== false ? (
+          <Hero
+            hero={site.hero}
+            productCount={orderedProducts.length}
+            categoryCount={categories.length}
+            onOpenRequest={handleOpenRequest}
+          />
+        ) : null}
 
-        {/* Scene 02: Brand Intro */}
-        <BrandIntroSection />
-
-        {/* Scene 03: Services Showcase */}
-        <ServicesOverviewSection
-          products={products}
-          onInspectProduct={handleInspectProduct}
-          onOpenRequest={handleOpenRequest}
-        />
-
-        {/* Scene 04: Interactive 3D Marketplace */}
-        <SubscriptionsSection
-          products={products}
-          categories={categories}
-          selectedProductSlug={inspectedSlug}
-          onSelectArtifact={handleSelectArtifact}
-          onDragArtifact={handleDragArtifact}
-          onOpenRequest={handleOpenRequest}
-        />
-
-        {/* Scene 05: AI Technology Experience */}
-        <AIServicesSection
-          offerings={aiOfferings}
-          products={products}
-          onPulseEyes={handlePulseEyes}
-          onOpenRequest={handleOpenRequest}
-          onOpenAssistant={handleOpenAssistant}
-        />
-
-        {/* Scene 06: Apple & Mobile Services */}
-        <OtherServicesSection
-          products={products}
-          onOpenRequest={handleOpenRequest}
-        />
-
-        {/* Scene 07: Trust, Support & Transparency */}
-        <TrustSection
-          productCount={products.length}
-          onOpenRequest={handleOpenRequest}
-        />
-
-        {/* Scene 08: Final Brand Finale */}
-        <FinaleSection onOpenRequest={handleOpenRequest} />
+        {/* CMS-controlled Sections rendered in configured sortOrder */}
+        {orderedSections
+          .filter((sec) => sec.enabled)
+          .map((sec) => {
+            switch (sec.id) {
+              case 'intro':
+                return (
+                  <BrandIntroSection
+                    key={sec.id}
+                    title={sec.title}
+                    description={sec.description}
+                    imageUrl={sec.imageUrl}
+                    imageAlt={sec.imageAlt}
+                  />
+                )
+              case 'services':
+                return (
+                  <ServicesOverviewSection
+                    key={sec.id}
+                    products={orderedProducts}
+                    title={sec.title}
+                    description={sec.description}
+                    imageUrl={sec.imageUrl}
+                    imageAlt={sec.imageAlt}
+                    onInspectProduct={handleInspectProduct}
+                    onOpenRequest={handleOpenRequest}
+                  />
+                )
+              case 'subscriptions':
+                return (
+                  <SubscriptionsSection
+                    key={sec.id}
+                    products={orderedProducts}
+                    categories={categories}
+                    title={sec.title}
+                    description={sec.description}
+                    imageUrl={sec.imageUrl}
+                    imageAlt={sec.imageAlt}
+                    selectedProductSlug={inspectedSlug}
+                    onSelectArtifact={handleSelectArtifact}
+                    onDragArtifact={handleDragArtifact}
+                    onOpenRequest={handleOpenRequest}
+                  />
+                )
+              case 'ai':
+                return (
+                  <AIServicesSection
+                    key={sec.id}
+                    offerings={aiOfferings}
+                    products={orderedProducts}
+                    title={sec.title}
+                    description={sec.description}
+                    imageUrl={sec.imageUrl}
+                    imageAlt={sec.imageAlt}
+                    onPulseEyes={handlePulseEyes}
+                    onOpenRequest={handleOpenRequest}
+                    onOpenAssistant={handleOpenAssistant}
+                  />
+                )
+              case 'other':
+                return (
+                  <OtherServicesSection
+                    key={sec.id}
+                    products={orderedProducts}
+                    title={sec.title}
+                    description={sec.description}
+                    imageUrl={sec.imageUrl}
+                    imageAlt={sec.imageAlt}
+                    onOpenRequest={handleOpenRequest}
+                  />
+                )
+              case 'trust':
+                return (
+                  <TrustSection
+                    key={sec.id}
+                    productCount={orderedProducts.length}
+                    title={sec.title}
+                    description={sec.description}
+                    imageUrl={sec.imageUrl}
+                    imageAlt={sec.imageAlt}
+                    onOpenRequest={handleOpenRequest}
+                  />
+                )
+              case 'finale':
+                return (
+                  <FinaleSection
+                    key={sec.id}
+                    title={sec.title}
+                    description={sec.description}
+                    imageUrl={sec.imageUrl}
+                    imageAlt={sec.imageAlt}
+                    onOpenRequest={handleOpenRequest}
+                  />
+                )
+              default:
+                return null
+            }
+          })}
       </div>
 
       <MrRobotChatPanel

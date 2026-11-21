@@ -76,10 +76,10 @@ export default async function AdminOrdersPage({
           </Link>
         </div>
       </div>
-      <form className="flex flex-wrap gap-2">
-        <input name="q" defaultValue={q} placeholder="جستجو..." className="admin-input max-w-xs" />
+      <form className="admin-card flex flex-wrap items-center gap-2 p-3">
+        <input name="q" defaultValue={q} placeholder="جستجو شماره سفارش یا مشتری..." className="admin-input max-w-xs" />
         <select name="status" defaultValue={status} className="admin-input max-w-[180px]">
-          <option value="">وضعیت سفارش</option>
+          <option value="">همه وضعیت‌های سفارش</option>
           {Object.entries(ORDER_STATUS_LABELS).map(([k, v]) => (
             <option key={k} value={k}>
               {v}
@@ -95,14 +95,24 @@ export default async function AdminOrdersPage({
           ))}
         </select>
         <select name="fulfillmentStatus" defaultValue={fulfillmentStatus} className="admin-input max-w-[160px]">
-          <option value="">تحویل</option>
+          <option value="">وضعیت تحویل</option>
           {Object.entries(FULFILLMENT_STATUS_LABELS).map(([k, v]) => (
             <option key={k} value={k}>
               {v}
             </option>
           ))}
         </select>
-        <button className="rounded-lg bg-[#e10600] px-4 py-2 text-sm">فیلتر</button>
+        <button type="submit" className="inline-flex min-h-[40px] items-center rounded-lg bg-[#e10600] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#c80500]">
+          اعمال فیلتر
+        </button>
+        {(q || status || paymentStatus || fulfillmentStatus || sp.queue) ? (
+          <Link
+            href="/admin/orders"
+            className="inline-flex min-h-[40px] items-center rounded-lg border border-white/15 px-3 py-2 text-xs text-white/75 hover:text-white"
+          >
+            پاک کردن
+          </Link>
+        ) : null}
       </form>
       <div className="admin-card overflow-x-auto">
         <table className="admin-table w-full min-w-[820px]">

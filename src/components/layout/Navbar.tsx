@@ -77,6 +77,10 @@ export function Navbar({ links, cartCount = 0 }: Props) {
     }
   }
 
+  if (pathname?.startsWith('/admin')) {
+    return null
+  }
+
   return (
     <>
       <header className={`cinema-navbar ${scrolled ? 'is-scrolled' : ''}`}>

@@ -20,7 +20,20 @@ import {
   toFaDigits,
 } from './product-helpers'
 
-export function BrandIntroSection() {
+export function BrandIntroSection({
+  title,
+  description,
+  imageUrl,
+  imageAlt,
+}: {
+  title?: string
+  description?: string
+  imageUrl?: string
+  imageAlt?: string
+} = {}) {
+  const customTitle = title?.trim()
+  const customDesc = description?.trim()
+
   return (
     <section className="cinema-story-scene" id="intro" data-scene="1">
       <div className="cinema-container">
@@ -35,16 +48,37 @@ export function BrandIntroSection() {
               <span className="code">SCENE 02</span>
             </div>
 
-            <h2 className="cinema-section-heading">
-              تخصص فنی عمیق، در کنار{' '}
-              <span className="cinema-title-accent">تجربه خریدی ساده و مطمئن</span>
-            </h2>
+            {customTitle ? (
+              <h2 className="cinema-section-heading">{customTitle}</h2>
+            ) : (
+              <h2 className="cinema-section-heading">
+                تخصص فنی عمیق، در کنار{' '}
+                <span className="cinema-title-accent">تجربه خریدی ساده و مطمئن</span>
+              </h2>
+            )}
 
             <p className="cinema-lead-text">
-              در <span className="cinema-brand-inline">MR.ROBOT</span> پیچیدگی‌های فنی دنیای
-              سایبری و ابزارهای جهانی به خدماتی شفاف، امن و قابل دسترس تبدیل می‌شوند؛ تا هر
-              کاربر بدون دغدغه به بهترین فناوری‌های روز متصل شود.
+              {customDesc || (
+                <>
+                  در <span className="cinema-brand-inline">MR.ROBOT</span> پیچیدگی‌های فنی دنیای
+                  سایبری و ابزارهای جهانی به خدماتی شفاف، امن و قابل دسترس تبدیل می‌شوند؛ تا هر
+                  کاربر بدون دغدغه به بهترین فناوری‌های روز متصل شود.
+                </>
+              )}
             </p>
+
+            {imageUrl?.trim() ? (
+              <div className="mt-5 overflow-hidden rounded-xl border border-white/15 bg-black/40">
+                <div className="aspect-[16/7] w-full overflow-hidden">
+                  <img
+                    src={imageUrl}
+                    alt={imageAlt || customTitle || 'هویت و فلسفه برند MR.ROBOT'}
+                    className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              </div>
+            ) : null}
 
             <div className="cinema-identity-pillars">
               <div className="cinema-pillar-box">
@@ -89,14 +123,24 @@ export function BrandIntroSection() {
 
 export function ServicesOverviewSection({
   products,
+  title,
+  description,
+  imageUrl,
+  imageAlt,
   onInspectProduct,
   onOpenRequest,
 }: {
   products: StorefrontProduct[]
+  title?: string
+  description?: string
+  imageUrl?: string
+  imageAlt?: string
   onInspectProduct: (product: StorefrontProduct) => void
   onOpenRequest: (subject: string) => void
 }) {
   const { addItem, isLoading } = useCart()
+  const customTitle = title?.trim()
+  const customDesc = description?.trim()
 
   const aiProduct =
     findMatchingProduct(products, /chatgpt|openai|gemini|claude|ai|gpt|cursor|copilot/) ??
@@ -121,14 +165,30 @@ export function ServicesOverviewSection({
             <span>ویترین خدمات تخصصی</span>
             <span className="code">SCENE 03</span>
           </div>
-          <h2 className="cinema-section-heading">
-            تمام نیازهای دیجیتال شما در{' '}
-            <span className="cinema-title-accent">یک مجموعه یکپارچه</span>
-          </h2>
+          {customTitle ? (
+            <h2 className="cinema-section-heading">{customTitle}</h2>
+          ) : (
+            <h2 className="cinema-section-heading">
+              تمام نیازهای دیجیتال شما در{' '}
+              <span className="cinema-title-accent">یک مجموعه یکپارچه</span>
+            </h2>
+          )}
           <p className="cinema-lead-text">
-            دسته‌بندی مورد نظر خود را انتخاب کنید تا جزئیات سرویس را ببینید، به سبد سفارش اضافه
-            کنید یا درخواست اختصاصی ثبت نمایید.
+            {customDesc ||
+              'دسته‌بندی مورد نظر خود را انتخاب کنید تا جزئیات سرویس را ببینید، به سبد سفارش اضافه کنید یا درخواست اختصاصی ثبت نمایید.'}
           </p>
+          {imageUrl?.trim() ? (
+            <div className="mx-auto mt-5 max-w-3xl overflow-hidden rounded-xl border border-white/15 bg-black/40">
+              <div className="aspect-[16/6] w-full overflow-hidden">
+                <img
+                  src={imageUrl}
+                  alt={imageAlt || customTitle || 'ویترین خدمات MR.ROBOT'}
+                  className="h-full w-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="cinema-services-bento">
@@ -354,11 +414,22 @@ export function ServicesOverviewSection({
 
 export function TrustSection({
   productCount,
+  title,
+  description,
+  imageUrl,
+  imageAlt,
   onOpenRequest,
 }: {
   productCount: number
+  title?: string
+  description?: string
+  imageUrl?: string
+  imageAlt?: string
   onOpenRequest: (subject: string) => void
 }) {
+  const customTitle = title?.trim()
+  const customDesc = description?.trim()
+
   return (
     <section className="cinema-story-scene" id="trust" data-scene="6">
       <div className="cinema-container">
@@ -368,15 +439,35 @@ export function TrustSection({
             <span>اعتماد، پشتیبانی و اطمینان مشتری</span>
             <span className="code">SCENE 07</span>
           </div>
-          <h2 className="cinema-section-heading">
-            خرید مطمئن با{' '}
-            <span className="cinema-title-accent">شفافیت و همراهی واقعی</span>
-          </h2>
+          {customTitle ? (
+            <h2 className="cinema-section-heading">{customTitle}</h2>
+          ) : (
+            <h2 className="cinema-section-heading">
+              خرید مطمئن با{' '}
+              <span className="cinema-title-accent">شفافیت و همراهی واقعی</span>
+            </h2>
+          )}
           <p className="cinema-lead-text">
-            تمام سفارش‌ها، محاسبه قیمت‌ها، تحویل فایل‌ها و پشتیبانی فنی مستقیماً در زیرساخت
-            یکپارچه <span className="cinema-brand-inline">MR.ROBOT</span> مدیریت و پیگیری
-            می‌شوند.
+            {customDesc || (
+              <>
+                تمام سفارش‌ها، محاسبه قیمت‌ها، تحویل فایل‌ها و پشتیبانی فنی مستقیماً در زیرساخت
+                یکپارچه <span className="cinema-brand-inline">MR.ROBOT</span> مدیریت و پیگیری
+                می‌شوند.
+              </>
+            )}
           </p>
+          {imageUrl?.trim() ? (
+            <div className="mx-auto mt-5 max-w-3xl overflow-hidden rounded-xl border border-white/15 bg-black/40">
+              <div className="aspect-[16/6] w-full overflow-hidden">
+                <img
+                  src={imageUrl}
+                  alt={imageAlt || customTitle || 'اعتماد و پشتیبانی MR.ROBOT'}
+                  className="h-full w-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="cinema-trust-grid">
@@ -486,11 +577,21 @@ export function TrustSection({
 }
 
 export function FinaleSection({
+  title,
+  description,
+  imageUrl,
+  imageAlt,
   onOpenRequest,
 }: {
+  title?: string
+  description?: string
+  imageUrl?: string
+  imageAlt?: string
   onOpenRequest: (subject: string) => void
 }) {
   const { openDrawer } = useCart()
+  const customTitle = title?.trim()
+  const customDesc = description?.trim()
 
   return (
     <section
@@ -502,7 +603,7 @@ export function FinaleSection({
         <div className="cinema-finale-card">
           <div className="cinema-kicker" style={{ marginBottom: '14px' }}>
             <span className="dot" />
-            <span>آماده ارتقای تجربه دیجیتال خود هستید؟</span>
+            <span>{customTitle || 'آماده ارتقای تجربه دیجیتال خود هستید؟'}</span>
             <span className="code">FINALE</span>
           </div>
 
@@ -511,9 +612,22 @@ export function FinaleSection({
           </div>
 
           <p className="cinema-lead-text mx-auto text-center">
-            از اشتراک‌های هوش مصنوعی و دسترسی امن تا خدمات تخصصی اپل و موبایل؛ همه چیز با نظم،
-            زیبایی و اطمینان در اختیار شماست.
+            {customDesc ||
+              'از اشتراک‌های هوش مصنوعی و دسترسی امن تا خدمات تخصصی اپل و موبایل؛ همه چیز با نظم، زیبایی و اطمینان در اختیار شماست.'}
           </p>
+
+          {imageUrl?.trim() ? (
+            <div className="mx-auto my-5 max-w-2xl overflow-hidden rounded-xl border border-white/15 bg-black/40">
+              <div className="aspect-[16/6] w-full overflow-hidden">
+                <img
+                  src={imageUrl}
+                  alt={imageAlt || customTitle || 'MR.ROBOT'}
+                  className="h-full w-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+            </div>
+          ) : null}
 
           <div className="cinema-cta-group justify-center">
             <a href="#marketplace" className="cinema-btn cinema-btn-signature">

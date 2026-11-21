@@ -1,5 +1,7 @@
 import Link from 'next/link'
+import { Clock, Mail, MapPin, Phone } from 'lucide-react'
 import type { NavLinkConfig, WebsiteConfig } from '@/lib/site-config/types'
+import { safeCmsHref } from '@/lib/site-config/cms-helpers'
 
 type Props = {
   config: WebsiteConfig['footer']
@@ -12,7 +14,17 @@ export function Footer({ config, quickLinks }: Props) {
     { key: 'telegram', label: 'تلگرام', href: config.social.telegram },
     { key: 'instagram', label: 'اینستاگرام', href: config.social.instagram },
     { key: 'twitter', label: 'ایکس (X)', href: config.social.twitter },
-  ].filter((s) => s.href)
+  ]
+    .filter((s) => Boolean(s.href?.trim()))
+    .map((s) => ({ ...s, safeHref: safeCmsHref(s.href, '#') }))
+    .filter((s) => s.safeHref !== '#')
+
+  const hasContactInfo = Boolean(
+    config.contactPhone?.trim() ||
+      config.contactEmail?.trim() ||
+      config.contactAddress?.trim() ||
+      config.supportHours?.trim(),
+  )
 
   return (
     <footer className="cinema-footer">
@@ -38,7 +50,7 @@ export function Footer({ config, quickLinks }: Props) {
                 {socials.map((s) => (
                   <li key={s.key}>
                     <a
-                      href={s.href}
+                      href={s.safeHref}
                       className="inline-flex min-h-[36px] items-center rounded-lg border border-[#7ea8ff]/20 bg-[#0b162e]/80 px-3 text-[#38bdf8] transition hover:border-[#38bdf8]/50 hover:text-white"
                       target="_blank"
                       rel="noopener noreferrer"
@@ -56,7 +68,10 @@ export function Footer({ config, quickLinks }: Props) {
             <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2.5 text-sm text-[#a8bad8]">
               {links.map((l) => (
                 <li key={l.id}>
-                  <Link href={l.href} className="transition hover:text-[#38bdf8]">
+                  <Link
+                    href={safeCmsHref(l.href, '/')}
+                    className="transition hover:text-[#38bdf8]"
+                  >
                     {l.label}
                   </Link>
                 </li>
@@ -79,6 +94,47 @@ export function Footer({ config, quickLinks }: Props) {
             <p className="mt-4 text-sm leading-relaxed text-[#a8bad8]">
               {config.futureText}
             </p>
+
+            {hasContactInfo ? (
+              <ul className="mt-4 space-y-2 text-xs text-[#a8bad8]">
+                {config.contactPhone?.trim() ? (
+                  <li className="flex items-center gap-2">
+                    <Phone className="h-3.5 w-3.5 shrink-0 text-[#e10600]" />
+                    <a
+                      href={`tel:${config.contactPhone.trim()}`}
+                      dir="ltr"
+                      className="hover:text-white"
+                    >
+                      {config.contactPhone.trim()}
+                    </a>
+                  </li>
+                ) : null}
+                {config.contactEmail?.trim() ? (
+                  <li className="flex items-center gap-2">
+                    <Mail className="h-3.5 w-3.5 shrink-0 text-[#e10600]" />
+                    <a
+                      href={`mailto:${config.contactEmail.trim()}`}
+                      dir="ltr"
+                      className="hover:text-white"
+                    >
+                      {config.contactEmail.trim()}
+                    </a>
+                  </li>
+                ) : null}
+                {config.supportHours?.trim() ? (
+                  <li className="flex items-center gap-2">
+                    <Clock className="h-3.5 w-3.5 shrink-0 text-[#38bdf8]" />
+                    <span>{config.supportHours.trim()}</span>
+                  </li>
+                ) : null}
+                {config.contactAddress?.trim() ? (
+                  <li className="flex items-center gap-2">
+                    <MapPin className="h-3.5 w-3.5 shrink-0 text-[#38bdf8]" />
+                    <span>{config.contactAddress.trim()}</span>
+                  </li>
+                ) : null}
+              </ul>
+            ) : null}
           </div>
         </div>
 

@@ -12,12 +12,25 @@ export default async function AppearancePage() {
   })
   const draft = await getDraftWebsiteConfig()
 
-  const [media, pages, revisions] = await Promise.all([
+  const [media, pages, revisions, products] = await Promise.all([
     prisma.mediaAsset.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
     prisma.sitePage.findMany({ orderBy: { updatedAt: 'desc' } }),
     prisma.websiteSettingsRevision.findMany({
       orderBy: { createdAt: 'desc' },
       take: 30,
+    }),
+    prisma.product.findMany({
+      orderBy: [{ isFeatured: 'desc' }, { sortOrder: 'asc' }, { createdAt: 'desc' }],
+      select: {
+        id: true,
+        slug: true,
+        nameFa: true,
+        imageUrl: true,
+        isFeatured: true,
+        isVisible: true,
+        category: { select: { nameFa: true } },
+      },
+      take: 100,
     }),
   ])
 
@@ -30,6 +43,7 @@ export default async function AppearancePage() {
         url: m.url,
         filename: m.filename,
         sizeBytes: m.sizeBytes,
+        altText: m.altText,
       }))}
       pages={pages.map((p) => ({
         id: p.id,
@@ -42,6 +56,15 @@ export default async function AppearancePage() {
         id: r.id,
         label: r.label,
         createdAt: r.createdAt.toISOString(),
+      }))}
+      products={products.map((p) => ({
+        id: p.id,
+        slug: p.slug,
+        nameFa: p.nameFa,
+        imageUrl: p.imageUrl,
+        isFeatured: p.isFeatured,
+        isVisible: p.isVisible,
+        categoryName: p.category.nameFa,
       }))}
     />
   )

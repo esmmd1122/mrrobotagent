@@ -17,6 +17,9 @@ export type StorefrontProduct = {
   name: string
   nameEn: string
   description: string
+  imageUrl: string | null
+  isAvailable: boolean
+  isFeatured: boolean
   details: string[]
   features: string[]
   price: number | null
@@ -47,6 +50,9 @@ export function mapStorefrontProduct(p: PublicProduct): StorefrontProduct {
     name: p.nameFa,
     nameEn: p.nameEn || p.nameFa,
     description: p.description,
+    imageUrl: p.imageUrl ?? null,
+    isAvailable: p.isAvailable,
+    isFeatured: p.isFeatured,
     details,
     features,
     price: p.price,

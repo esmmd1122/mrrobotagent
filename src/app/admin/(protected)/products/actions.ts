@@ -8,6 +8,7 @@ import { requireAdmin } from '@/lib/auth/require-admin'
 import { PERMISSIONS } from '@/lib/auth/constants'
 import { logActivity } from '@/lib/activity'
 import { STORE_CURRENCY_CODE } from '@/modules/commerce/money'
+import { isSafeImageUrl } from '@/lib/storage-validation'
 
 const optionalMoney = z.preprocess(
   (v) => (v === '' || v === null || v === undefined ? null : v),
@@ -55,8 +56,14 @@ async function saveProduct(formData: FormData, productId?: string) {
     throw new Error('داده محصول نامعتبر است')
   }
 
+  const trimmedImageUrl = parsed.data.imageUrl?.trim() || null
+  if (trimmedImageUrl && !isSafeImageUrl(trimmedImageUrl)) {
+    throw new Error('آدرس تصویر محصول معتبر نیست')
+  }
+
   const data = {
     ...parsed.data,
+    imageUrl: trimmedImageUrl,
     purchaseFieldsJson: parsed.data.purchaseFieldsJson?.trim() || '[]',
     currency: STORE_CURRENCY_CODE,
   }
@@ -106,4 +113,46 @@ export async function archiveProduct(productId: string) {
   revalidatePath('/admin/products')
   revalidatePath('/shop')
   revalidatePath('/')
+}
+
+export async function deleteProductAction(productId: string): Promise<{
+  ok: boolean
+  hasOrders?: boolean
+  error?: string
+}> {
+  const session = await requireAdmin(PERMISSIONS.PRODUCTS_MANAGE)
+
+  const existing = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { id: true, slug: true, nameFa: true },
+  })
+  if (!existing) {
+    return { ok: false, error: 'محصول مورد نظر یافت نشد.' }
+  }
+
+  const linkedOrderItems = await prisma.orderItem.count({
+    where: { productId },
+  })
+  if (linkedOrderItems > 0) {
+    return {
+      ok: false,
+      hasOrders: true,
+      error: `این محصول در ${linkedOrderItems.toLocaleString('fa-IR')} آیتم سفارش ثبت شده است و برای حفظ سابقه سفارش‌ها نمی‌توان آن را کاملاً حذف کرد. می‌توانید آن را آرشیو و مخفی کنید.`,
+    }
+  }
+
+  await prisma.product.delete({ where: { id: productId } })
+  await logActivity({
+    adminId: session.sub,
+    action: 'product.delete',
+    entity: 'Product',
+    entityId: productId,
+    metadata: { slug: existing.slug, nameFa: existing.nameFa },
+  })
+
+  revalidatePath('/')
+  revalidatePath('/shop')
+  revalidatePath(`/subscriptions/${existing.slug}`)
+  revalidatePath('/admin/products')
+  return { ok: true }
 }

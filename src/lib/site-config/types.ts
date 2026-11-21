@@ -17,12 +17,26 @@ export const navLinkSchema = z.object({
     .optional(),
 })
 
+export const CMS_SECTION_IDS = [
+  'intro',
+  'services',
+  'subscriptions',
+  'ai',
+  'other',
+  'trust',
+  'finale',
+] as const
+
+export type CmsSectionId = (typeof CMS_SECTION_IDS)[number]
+
 export const sectionSchema = z.object({
-  id: z.enum(['subscriptions', 'ai', 'other']),
+  id: z.enum(CMS_SECTION_IDS),
   enabled: z.boolean(),
   sortOrder: z.number().int(),
   title: z.string().optional(),
   description: z.string().optional(),
+  imageUrl: z.string().optional(),
+  imageAlt: z.string().optional(),
 })
 
 export const websiteConfigSchema = z.object({
@@ -39,13 +53,19 @@ export const websiteConfigSchema = z.object({
   hero: z.object({
     enabled: z.boolean().default(true),
     brandLabel: z.string().default('PREMIUM DIGITAL'),
+    headline: z.string().optional(),
     slogan: z.string(),
     subtitle: z.string(),
     description: z.string().optional(),
+    announcementEnabled: z.boolean().default(false),
+    announcementText: z.string().optional(),
     ctaPrimary: z.object({ label: z.string(), href: z.string() }),
     ctaSecondary: z.object({ label: z.string(), href: z.string() }),
     characterImageUrl: z.string(),
     cinematicBgUrl: z.string(),
+    bannerImageUrl: z.string().optional(),
+    bannerAlt: z.string().optional(),
+    featuredProductSlugs: z.array(z.string()).default([]),
     showSectionPreviews: z.boolean().default(true),
   }),
   sections: z.array(sectionSchema),
@@ -59,6 +79,10 @@ export const websiteConfigSchema = z.object({
     columnTitleLinks: z.string().default('مسیرهای سریع'),
     columnTitleFuture: z.string().default('آینده پلتفرم'),
     futureText: z.string(),
+    contactPhone: z.string().optional(),
+    contactEmail: z.string().optional(),
+    contactAddress: z.string().optional(),
+    supportHours: z.string().optional(),
     social: z.object({
       telegram: z.string().optional(),
       instagram: z.string().optional(),
@@ -68,8 +92,11 @@ export const websiteConfigSchema = z.object({
   seo: z.object({
     homeTitle: z.string().optional(),
     homeDescription: z.string().optional(),
+    ogImageUrl: z.string().optional(),
+    ogImageAlt: z.string().optional(),
   }),
 })
 
 export type WebsiteConfig = z.infer<typeof websiteConfigSchema>
 export type NavLinkConfig = z.infer<typeof navLinkSchema>
+export type SectionConfig = z.infer<typeof sectionSchema>

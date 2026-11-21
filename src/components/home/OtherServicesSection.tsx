@@ -8,10 +8,19 @@ type Props = {
   products: StorefrontProduct[]
   title?: string
   description?: string
+  imageUrl?: string
+  imageAlt?: string
   onOpenRequest: (subject: string) => void
 }
 
-export function OtherServicesSection({ products, onOpenRequest }: Props) {
+export function OtherServicesSection({
+  products,
+  title,
+  description,
+  imageUrl,
+  imageAlt,
+  onOpenRequest,
+}: Props) {
   const { addItem, isLoading } = useCart()
 
   const appleIdProduct = findMatchingProduct(products, /apple-id|appleid|apple/)
@@ -19,6 +28,8 @@ export function OtherServicesSection({ products, onOpenRequest }: Props) {
 
   const appleIdPrice = appleIdProduct ? formatProductPriceLabel(appleIdProduct) : null
   const icloudPrice = icloudProduct ? formatProductPriceLabel(icloudProduct) : null
+  const customTitle = title?.trim()
+  const customDesc = description?.trim()
 
   return (
     <section
@@ -38,15 +49,32 @@ export function OtherServicesSection({ products, onOpenRequest }: Props) {
               <span className="code">SCENE 06</span>
             </div>
 
-            <h2 className="cinema-section-heading">
-              رسیدگی دقیق به{' '}
-              <span className="cinema-title-accent">اکوسیستم اپل و تلفن همراه شما</span>
-            </h2>
+            {customTitle ? (
+              <h2 className="cinema-section-heading">{customTitle}</h2>
+            ) : (
+              <h2 className="cinema-section-heading">
+                رسیدگی دقیق به{' '}
+                <span className="cinema-title-accent">اکوسیستم اپل و تلفن همراه شما</span>
+              </h2>
+            )}
 
             <p className="cinema-lead-text">
-              از ساخت و مدیریت ایمن اپل آیدی و ارتقای فضای آیکلود تا عیب‌یابی تخصصی و خدمات
-              نرم‌افزاری و سخت‌افزاری موبایل با استاندارد حرفه‌ای.
+              {customDesc ||
+                'از ساخت و مدیریت ایمن اپل آیدی و ارتقای فضای آیکلود تا عیب‌یابی تخصصی و خدمات نرم‌افزاری و سخت‌افزاری موبایل با استاندارد حرفه‌ای.'}
             </p>
+
+            {imageUrl?.trim() ? (
+              <div className="mb-5 overflow-hidden rounded-xl border border-white/15 bg-black/40">
+                <div className="aspect-[16/7] w-full overflow-hidden">
+                  <img
+                    src={imageUrl}
+                    alt={imageAlt || customTitle || 'خدمات اپل و موبایل MR.ROBOT'}
+                    className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              </div>
+            ) : null}
 
             <div className="cinema-apple-grid">
               <div className="cinema-navy-card cinema-apple-card">

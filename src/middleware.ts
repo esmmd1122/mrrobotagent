@@ -86,7 +86,13 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!pathname.startsWith('/admin')) return NextResponse.next()
-  if (pathname === ADMIN_LOGIN) return NextResponse.next()
+
+  const adminHeaders = new Headers(request.headers)
+  adminHeaders.set('x-mr-chrome', 'bare')
+
+  if (pathname === ADMIN_LOGIN) {
+    return NextResponse.next({ request: { headers: adminHeaders } })
+  }
   if (pathname.startsWith('/api/auth')) return NextResponse.next()
 
   const token = request.cookies.get(SESSION_COOKIE)?.value
@@ -98,7 +104,7 @@ export async function middleware(request: NextRequest) {
 
   try {
     await jwtVerify(token, new TextEncoder().encode(secret))
-    return NextResponse.next()
+    return NextResponse.next({ request: { headers: adminHeaders } })
   } catch {
     const res = NextResponse.redirect(new URL(ADMIN_LOGIN, request.url))
     res.cookies.delete(SESSION_COOKIE)

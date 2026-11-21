@@ -18,6 +18,8 @@ type Props = {
   products: StorefrontProduct[]
   title?: string
   description?: string
+  imageUrl?: string
+  imageAlt?: string
   onPulseEyes: () => void
   onOpenRequest: (subject: string) => void
   onOpenAssistant?: () => void
@@ -36,6 +38,10 @@ type ResolvedIntent = {
 export function AIServicesSection({
   offerings,
   products,
+  title,
+  description,
+  imageUrl,
+  imageAlt,
   onPulseEyes,
   onOpenRequest,
   onOpenAssistant,
@@ -87,6 +93,8 @@ export function AIServicesSection({
   const matchedPrice = active?.matchedProduct
     ? formatProductPriceLabel(active.matchedProduct)
     : null
+  const customTitle = title?.trim()
+  const customDesc = description?.trim()
 
   return (
     <section
@@ -106,16 +114,37 @@ export function AIServicesSection({
               <span className="code">SCENE 05</span>
             </div>
 
-            <h2 className="cinema-section-heading">
-              ابزار هوشمند مناسب{' '}
-              <span className="cinema-title-accent">مسیر کاری خود را انتخاب کنید</span>
-            </h2>
+            {customTitle ? (
+              <h2 className="cinema-section-heading">{customTitle}</h2>
+            ) : (
+              <h2 className="cinema-section-heading">
+                ابزار هوشمند مناسب{' '}
+                <span className="cinema-title-accent">مسیر کاری خود را انتخاب کنید</span>
+              </h2>
+            )}
 
             <p className="cinema-lead-text">
-              حوزه فعالیت یا نیاز هوشمند خود را مشخص کنید تا{' '}
-              <span className="cinema-brand-inline">MR.ROBOT</span> راهکار دقیق اتوماسیون یا
-              اشتراک هوش مصنوعی متناسب با کار شما را آماده کند.
+              {customDesc || (
+                <>
+                  حوزه فعالیت یا نیاز هوشمند خود را مشخص کنید تا{' '}
+                  <span className="cinema-brand-inline">MR.ROBOT</span> راهکار دقیق اتوماسیون یا
+                  اشتراک هوش مصنوعی متناسب با کار شما را آماده کند.
+                </>
+              )}
             </p>
+
+            {imageUrl?.trim() ? (
+              <div className="mt-4 overflow-hidden rounded-xl border border-white/15 bg-black/40">
+                <div className="aspect-[16/7] w-full overflow-hidden">
+                  <img
+                    src={imageUrl}
+                    alt={imageAlt || customTitle || 'خدمات هوش مصنوعی MR.ROBOT'}
+                    className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              </div>
+            ) : null}
 
             {active ? (
               <div className="cinema-neural-console">

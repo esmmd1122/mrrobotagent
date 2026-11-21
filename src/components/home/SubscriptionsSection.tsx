@@ -20,6 +20,8 @@ type Props = {
   categories: HomeCategoryItem[]
   title?: string
   description?: string
+  imageUrl?: string
+  imageAlt?: string
   selectedProductSlug?: string | null
   onSelectArtifact: (key: ArtifactKey) => void
   onDragArtifact: (deltaX: number) => void
@@ -29,6 +31,10 @@ type Props = {
 export function SubscriptionsSection({
   products,
   categories,
+  title,
+  description,
+  imageUrl,
+  imageAlt,
   selectedProductSlug,
   onSelectArtifact,
   onDragArtifact,
@@ -115,6 +121,8 @@ export function SubscriptionsSection({
   const holoCode = activeProduct
     ? `HOLO // ${activeProduct.slug.toUpperCase().slice(0, 14)}`
     : 'HOLO // CATALOG'
+  const customTitle = title?.trim()
+  const customDesc = description?.trim()
 
   return (
     <section
@@ -133,15 +141,34 @@ export function SubscriptionsSection({
             <span className="code">SCENE 04</span>
           </div>
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <h2 className="cinema-section-heading !mb-0">
-              محصول را سه‌بعدی بررسی کنید و{' '}
-              <span className="cinema-title-accent">آسان سفارش دهید</span>
-            </h2>
+            {customTitle ? (
+              <h2 className="cinema-section-heading !mb-0">{customTitle}</h2>
+            ) : (
+              <h2 className="cinema-section-heading !mb-0">
+                محصول را سه‌بعدی بررسی کنید و{' '}
+                <span className="cinema-title-accent">آسان سفارش دهید</span>
+              </h2>
+            )}
             <Link href="/shop" className="cinema-btn cinema-btn-subtle cinema-btn-sm">
               <span>مشاهده همه محصولات</span>
               <ExternalLink className="h-3.5 w-3.5" />
             </Link>
           </div>
+          {customDesc ? (
+            <p className="cinema-lead-text mt-3">{customDesc}</p>
+          ) : null}
+          {imageUrl?.trim() ? (
+            <div className="mt-4 overflow-hidden rounded-xl border border-white/15 bg-black/40">
+              <div className="aspect-[16/5] w-full overflow-hidden">
+                <img
+                  src={imageUrl}
+                  alt={imageAlt || customTitle || 'فروشگاه محصولات MR.ROBOT'}
+                  className="h-full w-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {products.length === 0 ? (
@@ -210,6 +237,16 @@ export function SubscriptionsSection({
                       onClick={() => setActiveSlug(product.slug)}
                       className={`cinema-catalog-item ${isSelected ? 'is-selected' : ''}`}
                     >
+                      {product.imageUrl ? (
+                        <div className="h-11 w-14 shrink-0 overflow-hidden rounded-lg border border-white/15 bg-black">
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="h-full w-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                      ) : null}
                       <div className="min-w-0 flex-1">
                         <h4 className="truncate">{product.name}</h4>
                         <p className="line-clamp-1">{product.description}</p>
@@ -250,13 +287,25 @@ export function SubscriptionsSection({
 
                 <div className="cinema-stage-panel">
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="mb-1 text-lg font-extrabold text-white">
-                        {activeProduct.name}
-                      </h3>
-                      <p className="text-sm leading-relaxed text-[#a8bad8]">
-                        {activeProduct.description}
-                      </p>
+                    <div className="flex min-w-0 flex-1 items-start gap-3">
+                      {activeProduct.imageUrl ? (
+                        <div className="h-14 w-20 shrink-0 overflow-hidden rounded-lg border border-white/15 bg-black">
+                          <img
+                            src={activeProduct.imageUrl}
+                            alt={activeProduct.name}
+                            className="h-full w-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                      ) : null}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="mb-1 text-lg font-extrabold text-white">
+                          {activeProduct.name}
+                        </h3>
+                        <p className="text-sm leading-relaxed text-[#a8bad8]">
+                          {activeProduct.description}
+                        </p>
+                      </div>
                     </div>
                     <span
                       className={`cinema-price-chip shrink-0 ${

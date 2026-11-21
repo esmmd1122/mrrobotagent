@@ -1,16 +1,21 @@
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { DEFAULT_WEBSITE_CONFIG } from './defaults'
+import { normalizeWebsiteConfig } from './cms-helpers'
 import { websiteConfigSchema, type WebsiteConfig } from './types'
 
 const SETTINGS_ID = 'default'
 export const PREVIEW_COOKIE = 'mr_robot_site_preview'
 
 function parseConfig(json: string): WebsiteConfig {
-  const raw = JSON.parse(json)
-  const parsed = websiteConfigSchema.safeParse(raw)
-  if (!parsed.success) return DEFAULT_WEBSITE_CONFIG
-  return parsed.data
+  try {
+    const raw = JSON.parse(json)
+    const parsed = websiteConfigSchema.safeParse(raw)
+    if (!parsed.success) return DEFAULT_WEBSITE_CONFIG
+    return normalizeWebsiteConfig(parsed.data)
+  } catch {
+    return DEFAULT_WEBSITE_CONFIG
+  }
 }
 
 export async function ensureWebsiteSettings() {
@@ -79,7 +84,7 @@ export function validateWebsiteConfig(input: unknown): WebsiteConfig {
   if (!parsed.success) {
     throw new Error('پیکربندی نامعتبر است')
   }
-  return parsed.data
+  return normalizeWebsiteConfig(parsed.data)
 }
 
 export async function saveDraftWebsiteConfig(
