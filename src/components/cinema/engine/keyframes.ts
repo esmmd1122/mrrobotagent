@@ -158,7 +158,7 @@ export const STORY_KEYFRAMES: readonly StoryKeyframe[] = [
     fog: 0x030917,
     rimC: 0x38bdf8,
     rimV: 0x1d4ed8,
-    stageScale: 1.0,
+    stageScale: 0.001,
   },
   // 4: AI Technology Experience (Violet-Cyan neural mood; MR.ROBOT Left in Conductor Stance)
   {

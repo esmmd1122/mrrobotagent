@@ -86,9 +86,9 @@ export function buildCinemaEnvironment(
     new THREE.MeshStandardMaterial({
       color: 0x60a5fa,
       emissive: 0x1d4ed8,
-      emissiveIntensity: 1.5,
+      emissiveIntensity: 1.05,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.24,
     }),
   )
   horizonHalo.position.set(0, 1.8, -7.8)
@@ -122,7 +122,7 @@ export function buildCinemaEnvironment(
   fgGroup.add(finLeft, finRight)
   envGroup.add(fgGroup)
 
-  const dustCount = options.isSoftwareGl ? 90 : options.isMobile ? 120 : 340
+  const dustCount = options.isSoftwareGl ? 50 : options.isMobile ? 60 : 140
   const dPos = new Float32Array(dustCount * 3)
   for (let i = 0; i < dustCount; i++) {
     dPos[i * 3] = (Math.random() - 0.5) * 18
@@ -133,9 +133,9 @@ export function buildCinemaEnvironment(
   dustGeo.setAttribute('position', new THREE.BufferAttribute(dPos, 3))
   const dustMat = new THREE.PointsMaterial({
     color: 0x93c5fd,
-    size: 0.032,
+    size: 0.026,
     transparent: true,
-    opacity: 0.42,
+    opacity: 0.24,
     depthWrite: false,
   })
   const dust = new THREE.Points(dustGeo, dustMat)

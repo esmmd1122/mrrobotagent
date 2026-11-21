@@ -221,6 +221,7 @@ export function HomePage({ products, categories, aiOfferings, site }: Props) {
                     imageUrl={sec.imageUrl}
                     imageAlt={sec.imageAlt}
                     selectedProductSlug={inspectedSlug}
+                    reducedMotion={reducedMotion}
                     onSelectArtifact={handleSelectArtifact}
                     onDragArtifact={handleDragArtifact}
                     onOpenRequest={handleOpenRequest}
