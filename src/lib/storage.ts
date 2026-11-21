@@ -4,6 +4,7 @@ import path from 'path'
 import { isProductionRuntime } from '@/lib/env/production'
 import {
   DEFAULT_MAX_IMAGE_BYTES,
+  normalizeAndValidateProductImageUrl,
   resolveStorageProviderStatus,
   sanitizeUploadFolder,
   validateImagePayload,
@@ -15,6 +16,7 @@ export {
   ALLOWED_PRODUCT_IMAGE_MIMES,
   DEFAULT_MAX_IMAGE_BYTES,
   isSafeImageUrl,
+  normalizeAndValidateProductImageUrl,
   sanitizeUploadFolder,
   validateImagePayload,
 } from '@/lib/storage-validation'
@@ -24,7 +26,8 @@ export function getStorageProviderStatus(): StorageProviderStatus {
 }
 
 export function validateImage(file: File, maxBytes = DEFAULT_MAX_IMAGE_BYTES) {
-  const normalized = file.type.toLowerCase().trim()
+  const raw = file.type.toLowerCase().trim()
+  const normalized = raw === 'image/jpg' ? 'image/jpeg' : raw
   if (normalized !== 'image/jpeg' && normalized !== 'image/png' && normalized !== 'image/webp') {
     throw new Error('INVALID_IMAGE')
   }
@@ -34,38 +37,49 @@ export function validateImage(file: File, maxBytes = DEFAULT_MAX_IMAGE_BYTES) {
 
 async function uploadToS3(bytes: Buffer, key: string, mime: AllowedImageMime): Promise<string> {
   const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3')
+  const bucket = process.env.S3_BUCKET?.trim()
+  const accessKeyId = process.env.S3_ACCESS_KEY_ID?.trim()
+  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY?.trim()
+  const base = process.env.S3_PUBLIC_BASE_URL?.trim().replace(/\/$/, '')
+  if (!bucket || !accessKeyId || !secretAccessKey || !base) {
+    throw new Error('S3_PUBLIC_BASE_URL')
+  }
+
   const client = new S3Client({
-    region: process.env.S3_REGION || 'auto',
-    endpoint: process.env.S3_ENDPOINT || undefined,
+    region: process.env.S3_REGION?.trim() || 'auto',
+    endpoint: process.env.S3_ENDPOINT?.trim() || undefined,
     credentials: {
-      accessKeyId: process.env.S3_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+      accessKeyId,
+      secretAccessKey,
     },
-    forcePathStyle: Boolean(process.env.S3_ENDPOINT),
+    forcePathStyle: Boolean(process.env.S3_ENDPOINT?.trim()),
   })
   await client.send(
     new PutObjectCommand({
-      Bucket: process.env.S3_BUCKET!,
+      Bucket: bucket,
       Key: key,
       Body: bytes,
       ContentType: mime,
       CacheControl: 'public, max-age=31536000, immutable',
     }),
   )
-  const base = process.env.S3_PUBLIC_BASE_URL?.replace(/\/$/, '')
-  if (!base) throw new Error('S3_PUBLIC_BASE_URL')
   return `${base}/${key}`
 }
 
-async function uploadToCloudinary(
+export async function uploadToCloudinary(
   bytes: Buffer,
   folder: string,
   mime: AllowedImageMime,
   ext: string,
+  env: NodeJS.ProcessEnv = process.env,
 ): Promise<string> {
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME!
-  const apiKey = process.env.CLOUDINARY_API_KEY!
-  const apiSecret = process.env.CLOUDINARY_API_SECRET!
+  const cloudName = env.CLOUDINARY_CLOUD_NAME?.trim() || ''
+  const apiKey = env.CLOUDINARY_API_KEY?.trim() || ''
+  const apiSecret = env.CLOUDINARY_API_SECRET?.trim() || ''
+  if (!cloudName || !apiKey || !apiSecret) {
+    throw new Error('PERSISTENT_STORAGE_REQUIRED')
+  }
+
   const timestamp = String(Math.floor(Date.now() / 1000))
   const cloudFolder = `mr-robot/${folder}`
   const publicId = crypto.randomUUID()
@@ -86,25 +100,51 @@ async function uploadToCloudinary(
   form.append('public_id', publicId)
   form.append('signature', signature)
 
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudName)}/image/upload`, {
-    method: 'POST',
-    body: form,
-  })
+  let res: Response
+  try {
+    res = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudName)}/image/upload`, {
+      method: 'POST',
+      body: form,
+    })
+  } catch {
+    throw new Error('CLOUDINARY_NETWORK_FAILED')
+  }
+
   if (!res.ok) {
+    const errBody = (await res.json().catch(() => null)) as { error?: { message?: string } } | null
+    const providerReason = errBody?.error?.message?.slice(0, 200) || `HTTP ${res.status}`
+    console.error(`[storage/cloudinary] upload failed (${res.status}): ${providerReason}`)
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('CLOUDINARY_AUTH_FAILED')
+    }
+    if (res.status === 404) {
+      throw new Error('CLOUDINARY_CLOUD_NOT_FOUND')
+    }
     throw new Error('CLOUDINARY_UPLOAD_FAILED')
   }
-  const data = (await res.json()) as { secure_url?: string }
-  if (!data.secure_url) {
-    throw new Error('CLOUDINARY_UPLOAD_FAILED')
+
+  const data = (await res.json().catch(() => null)) as { secure_url?: string } | null
+  const rawSecureUrl = typeof data?.secure_url === 'string' ? data.secure_url.trim() : ''
+  if (!rawSecureUrl) {
+    throw new Error('CLOUDINARY_INVALID_URL')
   }
-  return data.secure_url
+
+  const validated = normalizeAndValidateProductImageUrl(rawSecureUrl, {
+    cloudinaryCloudName: cloudName,
+    strictCloudinaryCloudMatch: true,
+  })
+  if (!validated.ok || !validated.url || validated.source !== 'cloudinary') {
+    throw new Error('CLOUDINARY_INVALID_URL')
+  }
+
+  return validated.url
 }
 
-export async function storeImage(
+export async function storeImageWithMeta(
   file: File,
   prefix: string,
   maxBytes = DEFAULT_MAX_IMAGE_BYTES,
-): Promise<string> {
+): Promise<{ url: string; mime: AllowedImageMime; ext: 'jpg' | 'png' | 'webp' }> {
   const bytes = Buffer.from(await file.arrayBuffer())
   const validation = validateImagePayload({
     declaredMime: file.type,
@@ -120,22 +160,25 @@ export async function storeImage(
   const safeFolder = sanitizeUploadFolder(prefix)
   const key = `${safeFolder}/${crypto.randomUUID()}.${validation.ext}`
 
-  // 1. Existing S3-compatible persistent object storage (Cloudflare R2 / AWS S3 / Arvan / MinIO)
+  // 1. Existing S3-compatible persistent object storage (must match resolveStorageProviderStatus)
   if (
-    process.env.S3_BUCKET &&
-    process.env.S3_ACCESS_KEY_ID &&
-    process.env.S3_SECRET_ACCESS_KEY
+    process.env.S3_BUCKET?.trim() &&
+    process.env.S3_ACCESS_KEY_ID?.trim() &&
+    process.env.S3_SECRET_ACCESS_KEY?.trim() &&
+    process.env.S3_PUBLIC_BASE_URL?.trim()
   ) {
-    return uploadToS3(bytes, key, validation.mime)
+    const url = await uploadToS3(bytes, key, validation.mime)
+    return { url, mime: validation.mime, ext: validation.ext }
   }
 
-  // 2. Optional Cloudinary persistent storage
+  // 2. Cloudinary persistent storage
   if (
-    process.env.CLOUDINARY_CLOUD_NAME &&
-    process.env.CLOUDINARY_API_KEY &&
-    process.env.CLOUDINARY_API_SECRET
+    process.env.CLOUDINARY_CLOUD_NAME?.trim() &&
+    process.env.CLOUDINARY_API_KEY?.trim() &&
+    process.env.CLOUDINARY_API_SECRET?.trim()
   ) {
-    return uploadToCloudinary(bytes, safeFolder, validation.mime, validation.ext)
+    const url = await uploadToCloudinary(bytes, safeFolder, validation.mime, validation.ext)
+    return { url, mime: validation.mime, ext: validation.ext }
   }
 
   // 3. Strictly refuse non-persistent local writes in production (Vercel)
@@ -151,5 +194,18 @@ export async function storeImage(
   }
   await mkdir(path.dirname(target), { recursive: true })
   await writeFile(target, bytes)
-  return `/uploads/${key.replaceAll('\\', '/')}`
+  return {
+    url: `/uploads/${key.replaceAll('\\', '/')}`,
+    mime: validation.mime,
+    ext: validation.ext,
+  }
+}
+
+export async function storeImage(
+  file: File,
+  prefix: string,
+  maxBytes = DEFAULT_MAX_IMAGE_BYTES,
+): Promise<string> {
+  const stored = await storeImageWithMeta(file, prefix, maxBytes)
+  return stored.url
 }

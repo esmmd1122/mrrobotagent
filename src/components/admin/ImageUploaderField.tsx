@@ -12,7 +12,10 @@ import {
   Trash2,
   UploadCloud,
 } from 'lucide-react'
-import type { StorageProviderStatus } from '@/lib/storage-validation'
+import {
+  normalizeAndValidateProductImageUrl,
+  type StorageProviderStatus,
+} from '@/lib/storage-validation'
 
 export type MediaLibraryOption = {
   id: string
@@ -29,6 +32,8 @@ type Props = {
   value?: string
   defaultValue?: string
   onChange?: (url: string) => void
+  onUploadingChange?: (uploading: boolean) => void
+  validationError?: string | null
   folder?: 'products' | 'banners' | 'sections' | 'media'
   altText?: string
   aspectClass?: string
@@ -36,7 +41,8 @@ type Props = {
   onUploaded?: (asset: MediaLibraryOption) => void
 }
 
-const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const ALLOWED_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp'])
+const ALLOWED_EXT_RE = /\.(?:jpe?g|png|webp)$/i
 const MAX_BYTES = 5 * 1024 * 1024
 
 export function ImageUploaderField({
@@ -46,6 +52,8 @@ export function ImageUploaderField({
   value,
   defaultValue = '',
   onChange,
+  onUploadingChange,
+  validationError = null,
   folder = 'products',
   altText = '',
   aspectClass = 'aspect-[16/10]',
@@ -62,7 +70,8 @@ export function ImageUploaderField({
   const [dragOver, setDragOver] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [error, setError] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [urlError, setUrlError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const [showUrlInput, setShowUrlInput] = useState(false)
   const [showLibrary, setShowLibrary] = useState(false)
@@ -83,13 +92,21 @@ export function ImageUploaderField({
     }
   }, [])
 
+  function setUploadingState(next: boolean) {
+    setUploading(next)
+    onUploadingChange?.(next)
+  }
+
   function updateUrl(nextUrl: string) {
     if (!isControlled) setInternalUrl(nextUrl)
     onChange?.(nextUrl)
   }
 
   function validateClientFile(file: File): string | null {
-    if (!ALLOWED_TYPES.has(file.type.toLowerCase())) {
+    const normalizedType = file.type.toLowerCase().trim()
+    const hasValidType = ALLOWED_TYPES.has(normalizedType)
+    const hasValidExtFallback = normalizedType === '' && ALLOWED_EXT_RE.test(file.name || '')
+    if (!hasValidType && !hasValidExtFallback) {
       return 'فرمت تصویر مجاز نیست. لطفاً فایل JPG، JPEG، PNG یا WEBP انتخاب کنید.'
     }
     if (file.size <= 0) {
@@ -102,16 +119,17 @@ export function ImageUploaderField({
   }
 
   function uploadFile(file: File) {
-    setError(null)
+    setUploadError(null)
+    setUrlError(null)
     setSuccessMsg(null)
 
     const clientErr = validateClientFile(file)
     if (clientErr) {
-      setError(clientErr)
+      setUploadError(clientErr)
       return
     }
 
-    setUploading(true)
+    setUploadingState(true)
     setProgress(8)
 
     const formData = new FormData()
@@ -130,7 +148,7 @@ export function ImageUploaderField({
     }
 
     xhr.onload = () => {
-      setUploading(false)
+      setUploadingState(false)
       let parsed: { ok?: boolean; url?: string; error?: string; asset?: MediaLibraryOption; storage?: StorageProviderStatus } = {}
       try {
         parsed = JSON.parse(xhr.responseText || '{}')
@@ -139,22 +157,33 @@ export function ImageUploaderField({
       }
 
       if (xhr.status >= 200 && xhr.status < 300 && parsed.ok && parsed.url) {
+        const cleanUrl = parsed.url.trim()
+        const check = normalizeAndValidateProductImageUrl(cleanUrl)
+        if (!check.ok || !check.url) {
+          setProgress(0)
+          setUploadError('آدرس بازگشتی از سرویس آپلود معتبر نیست.')
+          return
+        }
         setProgress(100)
-        updateUrl(parsed.url)
+        updateUrl(check.url)
         if (parsed.storage) setStorage(parsed.storage)
         if (parsed.asset) onUploaded?.(parsed.asset)
         setSuccessMsg('تصویر با موفقیت آپلود و آماده ذخیره شد.')
         if (fileInputRef.current) fileInputRef.current.value = ''
       } else {
         setProgress(0)
-        setError(parsed.error || 'آپلود تصویر با خطا مواجه شد. لطفاً دوباره تلاش کنید.')
+        if (xhr.status === 413) {
+          setUploadError('حجم تصویر برای ارسال به سرور بیش از حد مجاز است. لطفاً فایل کوچک‌تری انتخاب کنید.')
+        } else {
+          setUploadError(parsed.error || `آپلود تصویر با خطا مواجه شد (کد ${xhr.status}). لطفاً دوباره تلاش کنید.`)
+        }
       }
     }
 
     xhr.onerror = () => {
-      setUploading(false)
+      setUploadingState(false)
       setProgress(0)
-      setError('خطای شبکه در ارتباط با سرور هنگام آپلود تصویر.')
+      setUploadError('خطای شبکه در ارتباط با سرور هنگام آپلود تصویر.')
     }
 
     xhr.send(formData)
@@ -176,11 +205,33 @@ export function ImageUploaderField({
 
   function handleRemove() {
     updateUrl('')
-    setError(null)
+    setUploadError(null)
+    setUrlError(null)
     setSuccessMsg(null)
     setProgress(0)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
+
+  function handleManualUrlChange(rawValue: string) {
+    setUploadError(null)
+    setSuccessMsg(null)
+    updateUrl(rawValue)
+    if (!rawValue.trim()) {
+      setUrlError(null)
+      return
+    }
+    const check = normalizeAndValidateProductImageUrl(rawValue)
+    setUrlError(check.ok ? null : check.messageFa)
+  }
+
+  const previewValidation = currentUrl
+    ? normalizeAndValidateProductImageUrl(currentUrl)
+    : null
+  const safePreviewUrl =
+    previewValidation && previewValidation.ok && previewValidation.url
+      ? previewValidation.url
+      : null
+  const activeValidationError = validationError || urlError
 
   return (
     <div className="space-y-2.5">
@@ -213,7 +264,7 @@ export function ImageUploaderField({
         ref={fileInputRef}
         id={inputId}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
         className="sr-only"
         onChange={handleFileChange}
         disabled={uploading}
@@ -225,11 +276,11 @@ export function ImageUploaderField({
         </div>
       ) : null}
 
-      {currentUrl ? (
+      {safePreviewUrl ? (
         <div className="overflow-hidden rounded border border-white/10 bg-[#0d1017]">
           <div className={`relative w-full ${aspectClass} max-h-[280px] overflow-hidden bg-[#08090c]`}>
             <img
-              src={currentUrl}
+              src={safePreviewUrl}
               alt={altText || label}
               className="h-full w-full object-cover"
               referrerPolicy="no-referrer"
@@ -356,7 +407,8 @@ export function ImageUploaderField({
               onClick={() => {
                 updateUrl(item.url)
                 setShowLibrary(false)
-                setError(null)
+                setUploadError(null)
+                setUrlError(null)
               }}
               className={`group overflow-hidden rounded border text-right transition ${
                 currentUrl === item.url
@@ -383,22 +435,35 @@ export function ImageUploaderField({
           type="text"
           dir="ltr"
           className="admin-input text-xs"
-          placeholder="https://... یا /uploads/..."
+          placeholder="https://res.cloudinary.com/... یا /uploads/..."
           value={currentUrl}
-          onChange={(e) => {
-            updateUrl(e.target.value)
-            setError(null)
-          }}
+          onChange={(e) => handleManualUrlChange(e.target.value)}
         />
       ) : null}
 
-      {error ? (
+      {uploadError ? (
         <div
           role="alert"
           className="flex items-start gap-2 rounded border border-red-500/40 bg-red-500/10 p-2.5 text-xs text-red-200"
         >
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
-          <span>{error}</span>
+          <div>
+            <span className="font-semibold text-red-100">خطای آپلود تصویر: </span>
+            <span>{uploadError}</span>
+          </div>
+        </div>
+      ) : null}
+
+      {activeValidationError ? (
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded border border-amber-500/45 bg-amber-500/10 p-2.5 text-xs text-amber-100"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+          <div>
+            <span className="font-semibold text-amber-50">خطای اعتبارسنجی آدرس تصویر: </span>
+            <span>{activeValidationError}</span>
+          </div>
         </div>
       ) : null}
 

@@ -5,7 +5,7 @@ import {
   DEFAULT_MAX_IMAGE_BYTES,
   getStorageProviderStatus,
   sanitizeUploadFolder,
-  storeImage,
+  storeImageWithMeta,
 } from '@/lib/storage'
 import { prisma } from '@/lib/db'
 import { logActivity } from '@/lib/activity'
@@ -53,34 +53,46 @@ export async function POST(req: Request) {
   try {
     form = await req.formData()
   } catch {
-    return NextResponse.json({ error: 'درخواست آپلود نامعتبر است.' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'درخواست آپلود نامعتبر است.', code: 'INVALID_FORM_DATA' },
+      { status: 400 },
+    )
   }
 
   const file = form.get('file')
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: 'فایل تصویر ارسال نشده است.' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'فایل تصویر ارسال نشده است.', code: 'MISSING_FILE' },
+      { status: 400 },
+    )
   }
 
   const folder = sanitizeUploadFolder(String(form.get('folder') || 'media'))
   const altText = String(form.get('altText') || '').trim().slice(0, 200)
 
-  let url = ''
+  let stored: { url: string; mime: string; ext: string }
   try {
-    url = await storeImage(file, folder, DEFAULT_MAX_IMAGE_BYTES)
+    stored = await storeImageWithMeta(file, folder, DEFAULT_MAX_IMAGE_BYTES)
   } catch (error) {
     const code = error instanceof Error ? error.message : ''
     if (code === 'EMPTY_IMAGE') {
-      return NextResponse.json({ error: 'فایل انتخاب‌شده خالی است.' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'فایل انتخاب‌شده خالی است.', code },
+        { status: 400 },
+      )
     }
     if (code === 'INVALID_IMAGE') {
       return NextResponse.json(
-        { error: 'فرمت تصویر نامعتبر است. فقط JPG، JPEG، PNG و WEBP مجاز هستند.' },
+        {
+          error: 'فرمت یا محتوای تصویر نامعتبر است. فقط فایل‌های واقعی JPG، JPEG، PNG و WEBP مجاز هستند.',
+          code,
+        },
         { status: 400 },
       )
     }
     if (code === 'IMAGE_TOO_LARGE') {
       return NextResponse.json(
-        { error: 'حجم تصویر بیشتر از حد مجاز ۵ مگابایت است.' },
+        { error: 'حجم تصویر بیشتر از حد مجاز ۵ مگابایت است.', code },
         { status: 400 },
       )
     }
@@ -88,14 +100,57 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            'فضای ذخیره‌سازی ماندگار (S3/R2 یا Cloudinary) روی سرور تولیدی تنظیم نشده است. متغیرهای ذخیره‌سازی ابری را در سرور پیکربندی کنید.',
+            'فضای ذخیره‌سازی ماندگار (Cloudinary یا S3/R2) روی سرور تولیدی کامل تنظیم نشده است. متغیرهای ذخیره‌سازی ابری را در تنظیمات سرور بررسی کنید.',
           code: 'PERSISTENT_STORAGE_REQUIRED',
         },
         { status: 503 },
       )
     }
+    if (code === 'CLOUDINARY_AUTH_FAILED') {
+      return NextResponse.json(
+        {
+          error:
+            'احراز هویت Cloudinary ناموفق بود. صحت CLOUDINARY_API_KEY و CLOUDINARY_API_SECRET را در تنظیمات سرور بررسی کنید.',
+          code,
+        },
+        { status: 502 },
+      )
+    }
+    if (code === 'CLOUDINARY_CLOUD_NOT_FOUND') {
+      return NextResponse.json(
+        {
+          error:
+            'نام حساب Cloudinary یافت نشد. مقدار CLOUDINARY_CLOUD_NAME را در تنظیمات سرور بررسی کنید.',
+          code,
+        },
+        { status: 502 },
+      )
+    }
+    if (code === 'CLOUDINARY_INVALID_URL') {
+      return NextResponse.json(
+        {
+          error:
+            'پاسخ دریافتی از Cloudinary شامل آدرس HTTPS معتبر برای این حساب نبود.',
+          code,
+        },
+        { status: 502 },
+      )
+    }
+    if (code === 'CLOUDINARY_NETWORK_FAILED' || code === 'CLOUDINARY_UPLOAD_FAILED') {
+      return NextResponse.json(
+        {
+          error:
+            'آپلود تصویر به Cloudinary با خطا مواجه شد. اتصال سرور به Cloudinary و تنظیمات حساب را بررسی کرده و دوباره تلاش کنید.',
+          code,
+        },
+        { status: 502 },
+      )
+    }
     return NextResponse.json(
-      { error: 'خطا در ذخیره فایل تصویر. لطفاً تنظیمات فضای ذخیره‌سازی را بررسی کنید.' },
+      {
+        error: 'خطا در ذخیره فایل تصویر روی فضای ذخیره‌سازی. لطفاً دوباره تلاش کنید.',
+        code: 'UPLOAD_STORAGE_FAILED',
+      },
       { status: 503 },
     )
   }
@@ -105,8 +160,8 @@ export async function POST(req: Request) {
   const asset = await prisma.mediaAsset.create({
     data: {
       filename: safeFilename,
-      url,
-      mimeType: file.type,
+      url: stored.url,
+      mimeType: stored.mime,
       sizeBytes: file.size,
       altText,
     },
@@ -117,12 +172,12 @@ export async function POST(req: Request) {
     action: 'media.upload',
     entity: 'MediaAsset',
     entityId: asset.id,
-    metadata: { folder, mimeType: file.type, sizeBytes: file.size },
+    metadata: { folder, mimeType: stored.mime, sizeBytes: file.size },
   })
 
   return NextResponse.json({
     ok: true,
-    url,
+    url: stored.url,
     asset,
     storage: getStorageProviderStatus(),
   })

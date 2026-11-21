@@ -6,6 +6,11 @@ const remotePatterns: NonNullable<NextConfig['images']>['remotePatterns'] = [
     hostname: 'res.cloudinary.com',
     pathname: '/**',
   },
+  {
+    protocol: 'https',
+    hostname: '*.cloudinary.com',
+    pathname: '/**',
+  },
 ]
 
 const s3Base = process.env.S3_PUBLIC_BASE_URL
