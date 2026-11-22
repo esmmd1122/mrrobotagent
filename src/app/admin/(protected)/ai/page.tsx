@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/db'
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { PERMISSIONS } from '@/lib/auth/constants'
+import { parseAIProjectRecord } from '@/lib/ai-projects'
+import { AdminAIRequestsClient } from '@/components/admin/AdminAIRequestsClient'
 
 export default async function AdminAIPage() {
   await requireAdmin(PERMISSIONS.AI_MANAGE)
@@ -9,48 +11,34 @@ export default async function AdminAIPage() {
     prisma.aIServiceRequest.findMany({
       include: { customer: true, offering: true },
       orderBy: { createdAt: 'desc' },
-      take: 50,
+      take: 100,
     }),
   ])
 
+  const parsedRequests = requests.map((r) => parseAIProjectRecord(r))
+
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold">MR.ROBOT AI</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-white">MR.ROBOT AI — مدیریت پروژه‌های اختصاصی</h1>
+          <p className="mt-1 text-xs text-white/55">
+            مشاهده درخواست‌های ساخت پروژه هوش مصنوعی، ثبت پیش‌فاکتور، زمان تحویل و پیگیری مشتریان
+          </p>
+        </div>
+      </div>
+
+      <AdminAIRequestsClient initialRequests={parsedRequests} />
+
       <section className="admin-card p-4">
-        <h2 className="font-semibold">سرویس‌های قابل ارائه</h2>
-        <ul className="mt-2 space-y-1 text-sm">
+        <h2 className="font-semibold text-white">سرویس‌های پایه ثبت‌شده در کاتالوگ AI</h2>
+        <ul className="mt-2 space-y-1 text-sm text-white/80">
           {offerings.map((o) => (
             <li key={o.id}>
               {o.titleFa} — {o.isAvailable ? 'فعال' : 'غیرفعال'}
             </li>
           ))}
         </ul>
-        <p className="mt-3 text-xs text-white/45">
-          ویرایش پیشرفته سرویس‌ها و API Provider در فاز بعدی (بدون ادعای اتصال فعال).
-        </p>
-      </section>
-      <section className="admin-card overflow-x-auto p-4">
-        <h2 className="mb-3 font-semibold">درخواست‌های مشتری</h2>
-        <table className="admin-table w-full">
-          <thead>
-            <tr>
-              <th>عنوان</th>
-              <th>مشتری</th>
-              <th>تماس</th>
-              <th>وضعیت</th>
-            </tr>
-          </thead>
-          <tbody>
-            {requests.map((r) => (
-              <tr key={r.id}>
-                <td>{r.title}</td>
-                <td>{r.customer?.name || '—'}</td>
-                <td>{r.contact}</td>
-                <td>{r.status}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </section>
     </div>
   )

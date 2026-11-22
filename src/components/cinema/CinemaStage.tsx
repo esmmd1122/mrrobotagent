@@ -25,7 +25,7 @@ import { STORY_KEYFRAMES, evaluateStoryFrame } from './engine/keyframes'
 export const SCENE_IDS = [
   'hero',
   'intro',
-  'services',
+  'ai-builder',
   'marketplace',
   'ai-experience',
   'apple-mobile',

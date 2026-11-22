@@ -143,8 +143,8 @@ export function Footer({ config, quickLinks }: Props) {
             © {new Date().getFullYear()} <span className="cinema-brand-inline text-white/90">MR.ROBOT</span> — تمامی حقوق محفوظ است.
           </div>
           <div className="flex flex-wrap gap-5">
-            <Link href="/#services" className="transition hover:text-[#38bdf8]">
-              خدمات
+            <Link href="/#ai-builder" className="transition hover:text-[#38bdf8]">
+              پروژه هوش مصنوعی
             </Link>
             <Link href="/#marketplace" className="transition hover:text-[#38bdf8]">
               فروشگاه سه‌بعدی

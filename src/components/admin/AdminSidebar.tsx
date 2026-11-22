@@ -38,6 +38,7 @@ export const ADMIN_NAV_GROUPS = [
 
 const MOBILE_QUICK_ITEMS = [
   { href: '/admin', label: 'داشبورد' },
+  { href: '/admin/ai', label: 'پروژه‌های AI' },
   { href: '/admin/products', label: 'محصولات' },
   { href: '/admin/appearance', label: 'محتوا (CMS)' },
   { href: '/admin/orders', label: 'سفارش‌ها' },

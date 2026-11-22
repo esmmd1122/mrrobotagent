@@ -3,7 +3,7 @@
 const CHAPTERS = [
   { id: 'hero', label: '۰۱ آغاز' },
   { id: 'intro', label: '۰۲ هویت برند' },
-  { id: 'services', label: '۰۳ ویترین خدمات' },
+  { id: 'ai-builder', label: '۰۳ پروژه هوش مصنوعی' },
   { id: 'marketplace', label: '۰۴ فروشگاه سه‌بعدی' },
   { id: 'ai-experience', label: '۰۵ فناوری هوش مصنوعی' },
   { id: 'apple-mobile', label: '۰۶ اپل و موبایل' },

@@ -3,13 +3,13 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Box, Menu, ShoppingBag, Sparkles, User, X } from 'lucide-react'
+import { Menu, ShoppingBag, Sparkles, User, X } from 'lucide-react'
 import { useOptionalCart } from '@/components/cart/CartProvider'
 import type { NavLinkConfig } from '@/lib/site-config/types'
 
 const CINEMA_HOME_LINKS = [
   { id: 'intro', href: '#intro', label: 'هویت برند' },
-  { id: 'services', href: '#services', label: 'خدمات' },
+  { id: 'ai-builder', href: '#ai-builder', label: 'پروژه هوش مصنوعی' },
   { id: 'marketplace', href: '#marketplace', label: 'فروشگاه سه‌بعدی' },
   { id: 'ai-experience', href: '#ai-experience', label: 'هوش مصنوعی' },
   { id: 'apple-mobile', href: '#apple-mobile', label: 'اپل و موبایل' },
@@ -124,32 +124,17 @@ export function Navbar({ links, cartCount = 0 }: Props) {
 
         <div className="cinema-nav-actions">
           {isHome && bridge ? (
-            <>
-              <button
-                type="button"
-                className="cinema-ctrl-pill cinema-desktop-only-pill"
-                onClick={bridge.openGlbModal}
-                title="جایگذاری مدل مرجع رسمی MR.ROBOT (.glb)"
-              >
-                <Box className="h-3.5 w-3.5 text-[#38bdf8]" />
-                <span>مدل مرجع</span>
-                <span className="text-[0.72rem] text-[#7c92b8]" dir="ltr">
-                  GLB
-                </span>
-              </button>
-
-              <button
-                type="button"
-                className={`cinema-ctrl-pill cinema-desktop-only-pill ${
-                  !bridge.reducedMotion ? 'is-active' : ''
-                }`}
-                onClick={bridge.toggleReducedMotion}
-                title="تغییر حالت حرکت سه‌بعدی"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>{bridge.reducedMotion ? 'آرام' : 'سینمایی'}</span>
-              </button>
-            </>
+            <button
+              type="button"
+              className={`cinema-ctrl-pill cinema-desktop-only-pill ${
+                !bridge.reducedMotion ? 'is-active' : ''
+              }`}
+              onClick={bridge.toggleReducedMotion}
+              title="تغییر حالت حرکت سه‌بعدی"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>{bridge.reducedMotion ? 'آرام' : 'سینمایی'}</span>
+            </button>
           ) : null}
 
           <Link
@@ -292,17 +277,6 @@ export function Navbar({ links, cartCount = 0 }: Props) {
               <span>
                 حالت حرکت سه‌بعدی: {bridge.reducedMotion ? 'آرام' : 'سینمایی'}
               </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false)
-                bridge.openGlbModal()
-              }}
-              className="cinema-btn cinema-btn-buy cinema-btn-sm w-full"
-            >
-              <Box className="h-4 w-4" />
-              <span>بارگذاری مدل مرجع GLB</span>
             </button>
           </div>
         ) : null}

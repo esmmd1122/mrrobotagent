@@ -51,8 +51,13 @@ export function Hero({
   const customHeadline = hero.headline?.trim()
   const primaryLabel = hero.ctaPrimary?.label?.trim() || 'ورود به فروشگاه سه‌بعدی'
   const primaryHref = hero.ctaPrimary?.href?.trim() || '#marketplace'
-  const secondaryLabel = hero.ctaSecondary?.label?.trim() || 'مشاهده دسته‌بندی خدمات'
-  const secondaryHref = hero.ctaSecondary?.href?.trim() || '#services'
+  const rawSecondaryLabel = hero.ctaSecondary?.label?.trim() || ''
+  const rawSecondaryHref = hero.ctaSecondary?.href?.trim() || '#ai-builder'
+  const secondaryHref = rawSecondaryHref === '#services' ? '#ai-builder' : rawSecondaryHref
+  const secondaryLabel =
+    !rawSecondaryLabel || rawSecondaryLabel === 'مشاهده دسته‌بندی خدمات'
+      ? 'ساخت پروژه هوش مصنوعی'
+      : rawSecondaryLabel
   const showAnnouncement = Boolean(hero.announcementEnabled && hero.announcementText?.trim())
 
   return (

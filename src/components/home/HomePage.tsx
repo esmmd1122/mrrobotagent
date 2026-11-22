@@ -24,11 +24,17 @@ import {
 } from '@/components/home/CinemaSections'
 import { SubscriptionsSection } from '@/components/home/SubscriptionsSection'
 import { AIServicesSection } from '@/components/home/AIServicesSection'
+import { AIProjectBuilderSection } from '@/components/home/AIProjectBuilderSection'
+import { AIProjectRequestModal } from '@/components/home/AIProjectRequestModal'
 import { OtherServicesSection } from '@/components/home/OtherServicesSection'
+import type { AIProjectCategoryId } from '@/lib/ai-projects'
 import type { StorefrontProduct } from '@/lib/mappers/product'
 import type { WebsiteConfig } from '@/lib/site-config/types'
 import { normalizeSections } from '@/lib/site-config/cms-helpers'
 import type { HomeAIOffering, HomeCategoryItem } from './product-helpers'
+
+// Reversible feature toggle: keeps ServicesOverviewSection intact without rendering inactive service cards
+const SHOW_LEGACY_SERVICES_SHOWCASE = false
 
 const CinemaStage = dynamic(
   () => import('@/components/cinema/CinemaStage').then((m) => m.CinemaStage),
@@ -56,6 +62,9 @@ export function HomePage({ products, categories, aiOfferings, site }: Props) {
   const [inspectedSlug, setInspectedSlug] = useState<string | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
   const [assistantState, setAssistantState] = useState<AssistantAnimState>('idle')
+  const [aiProjectOpen, setAiProjectOpen] = useState(false)
+  const [aiProjectCategory, setAiProjectCategory] =
+    useState<AIProjectCategoryId>('business-ai-assistant')
 
   // Order products prioritizing CMS-selected featuredProductSlugs while keeping all real products
   const orderedProducts = useMemo(() => {
@@ -121,6 +130,12 @@ export function HomePage({ products, categories, aiOfferings, site }: Props) {
   const handleOpenRequest = useCallback((subject: string) => {
     setRequestSubject(subject)
     setRequestOpen(true)
+  }, [])
+
+  const handleStartAiProject = useCallback((categoryId?: AIProjectCategoryId) => {
+    setAiProjectCategory(categoryId ?? 'business-ai-assistant')
+    setAiProjectOpen(true)
+    stageRef.current?.pulseCharacterEyes(5.2)
   }, [])
 
   const handleSelectArtifact = useCallback((key: ArtifactKey) => {
@@ -198,7 +213,7 @@ export function HomePage({ products, categories, aiOfferings, site }: Props) {
                   />
                 )
               case 'services':
-                return (
+                return SHOW_LEGACY_SERVICES_SHOWCASE ? (
                   <ServicesOverviewSection
                     key={sec.id}
                     products={orderedProducts}
@@ -208,6 +223,12 @@ export function HomePage({ products, categories, aiOfferings, site }: Props) {
                     imageAlt={sec.imageAlt}
                     onInspectProduct={handleInspectProduct}
                     onOpenRequest={handleOpenRequest}
+                  />
+                ) : (
+                  <AIProjectBuilderSection
+                    key={sec.id}
+                    onStartProject={handleStartAiProject}
+                    onOpenAssistant={handleOpenAssistant}
                   />
                 )
               case 'subscriptions':
@@ -295,6 +316,12 @@ export function HomePage({ products, categories, aiOfferings, site }: Props) {
         open={requestOpen}
         subjectTitle={requestSubject}
         onClose={() => setRequestOpen(false)}
+      />
+
+      <AIProjectRequestModal
+        open={aiProjectOpen}
+        initialCategoryId={aiProjectCategory}
+        onClose={() => setAiProjectOpen(false)}
       />
 
       <GlbModelModal
