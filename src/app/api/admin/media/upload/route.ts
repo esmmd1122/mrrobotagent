@@ -15,7 +15,8 @@ async function authorizeMediaAdmin() {
   if (!session) return { session: null, status: 401 as const }
   const allowed =
     hasPermission(session, PERMISSIONS.PRODUCTS_MANAGE) ||
-    hasPermission(session, PERMISSIONS.CONTENT_MANAGE)
+    hasPermission(session, PERMISSIONS.CONTENT_MANAGE) ||
+    hasPermission(session, PERMISSIONS.AI_MANAGE)
   if (!allowed) return { session: null, status: 403 as const }
   return { session, status: 200 as const }
 }

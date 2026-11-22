@@ -227,6 +227,8 @@ export function HomePage({ products, categories, aiOfferings, site }: Props) {
                 ) : (
                   <AIProjectBuilderSection
                     key={sec.id}
+                    imageUrl={sec.imageUrl}
+                    imageAlt={sec.imageAlt}
                     onStartProject={handleStartAiProject}
                     onOpenAssistant={handleOpenAssistant}
                   />

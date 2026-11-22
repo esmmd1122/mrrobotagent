@@ -167,6 +167,67 @@ export async function restoreWebsiteRevision(revisionId: string, adminId: string
   })
 }
 
+/**
+ * Updates a specific homepage section's imageUrl and optional imageAlt across both
+ * draftConfig and publishedConfig in the existing WebsiteSettings record, so changes
+ * appear immediately on the public site and stay synchronized with WebsiteEditor.
+ */
+export async function updateSectionImageInWebsiteSettings(params: {
+  sectionId: WebsiteConfig['sections'][number]['id']
+  imageUrl: string
+  imageAlt?: string
+  adminId: string
+}): Promise<{ imageUrl: string; imageAlt: string }> {
+  await ensureWebsiteSettings()
+  const row = await prisma.websiteSettings.findUniqueOrThrow({
+    where: { id: SETTINGS_ID },
+  })
+
+  const cleanUrl = params.imageUrl.trim()
+  const cleanAlt = (params.imageAlt ?? '').trim().slice(0, 200)
+
+  const patchSectionList = (cfg: WebsiteConfig): WebsiteConfig => ({
+    ...cfg,
+    sections: cfg.sections.map((sec) =>
+      sec.id === params.sectionId
+        ? {
+            ...sec,
+            imageUrl: cleanUrl,
+            imageAlt: params.imageAlt !== undefined ? cleanAlt : sec.imageAlt || '',
+          }
+        : sec,
+    ),
+  })
+
+  const nextDraft = validateWebsiteConfig(patchSectionList(parseConfig(row.draftConfig)))
+  const nextPublished = validateWebsiteConfig(patchSectionList(parseConfig(row.publishedConfig)))
+
+  await prisma.$transaction([
+    prisma.websiteSettings.update({
+      where: { id: SETTINGS_ID },
+      data: {
+        draftConfig: JSON.stringify(nextDraft),
+        publishedConfig: JSON.stringify(nextPublished),
+        publishedAt: new Date(),
+      },
+    }),
+    prisma.activityLog.create({
+      data: {
+        adminId: params.adminId,
+        action: cleanUrl ? 'website.section_image_save' : 'website.section_image_remove',
+        entity: 'WebsiteSettings',
+        entityId: `${SETTINGS_ID}:${params.sectionId}`,
+        metadata: JSON.stringify({
+          sectionId: params.sectionId,
+          hasImage: Boolean(cleanUrl),
+        }),
+      },
+    }),
+  ])
+
+  return { imageUrl: cleanUrl, imageAlt: cleanAlt }
+}
+
 export function themeToCssVars(
   theme: WebsiteConfig['theme'],
 ): Record<string, string> {

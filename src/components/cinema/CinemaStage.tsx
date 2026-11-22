@@ -663,7 +663,7 @@ export const CinemaStage = forwardRef<CinemaStageHandle, Props>(function CinemaS
         {webglUnavailable ? (
           <div className="relative flex h-full w-full items-start justify-center overflow-hidden bg-gradient-to-b from-[#09060e] via-[#04060f] to-[#02040a] pt-16 lg:items-center lg:justify-start lg:pl-20 lg:pt-0">
             <img
-              src="/assets/aistudio/IMG_0544_1313509c.JPG"
+              src="/images/mr-robot-character.png"
               alt="کاراکتر رسمی MR.ROBOT"
               className="h-[300px] w-[300px] rounded-full object-cover object-top opacity-85 shadow-[0_0_90px_rgba(239,29,66,0.35)] lg:h-[440px] lg:w-[440px]"
               referrerPolicy="no-referrer"

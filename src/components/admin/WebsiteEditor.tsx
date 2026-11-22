@@ -823,7 +823,16 @@ function SectionsTab({
               </div>
               <div className="md:col-span-2">
                 <ImageUploaderField
-                  label="تصویر یا بنر اختیاری این بخش"
+                  label={
+                    s.id === 'services'
+                      ? 'تصویر کارت سمت چپ بخش MR.ROBOT AI در صفحه اصلی'
+                      : 'تصویر یا بنر اختیاری این بخش'
+                  }
+                  description={
+                    s.id === 'services'
+                      ? 'این تصویر مستقیماً در کادر تصویری بخش «MR.ROBOT AI — ایده‌ات را به یک سیستم هوشمند تبدیل کن» نمایش داده می‌شود و با صفحه /admin/ai همگام است.'
+                      : undefined
+                  }
                   folder="sections"
                   value={s.imageUrl || ''}
                   onChange={(url) => updateSection(s.id, { imageUrl: url })}

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   AlertCircle,
+  Bot,
   Loader2,
   MessageSquare,
   RefreshCw,
@@ -15,8 +16,11 @@ import {
   X,
 } from 'lucide-react'
 import type { AssistantAnimState } from '@/components/cinema/engine/character/assistant-state'
+import {
+  OFFICIAL_MASCOT_AVATAR_PRIMARY,
+  resolveNextMascotAvatarSrc,
+} from '@/lib/mascot-media'
 
-const MASCOT_AVATAR_SRC = '/assets/aistudio/IMG_0544_1313509c.JPG'
 const SESSION_HISTORY_KEY = 'mrrobot_ai_chat_history_v1'
 const MAX_STORED_MESSAGES = 16
 const CLIENT_REQUEST_TIMEOUT_MS = 28_000
@@ -118,6 +122,11 @@ export function MrRobotChatPanel({
   const [sending, setSending] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [lastFailedInput, setLastFailedInput] = useState<string | null>(null)
+  const [avatarSrc, setAvatarSrc] = useState<string | null>(OFFICIAL_MASCOT_AVATAR_PRIMARY)
+
+  const handleAvatarError = useCallback(() => {
+    setAvatarSrc((prev) => (prev ? resolveNextMascotAvatarSrc(prev) : null))
+  }, [])
 
   const listEndRef = useRef<HTMLDivElement | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -454,15 +463,20 @@ export function MrRobotChatPanel({
           aria-label="باز کردن گفت‌وگو با دستیار هوشمند MR.ROBOT AI"
           className="fixed bottom-[max(14px,env(safe-area-inset-bottom))] left-3 z-40 flex min-h-[48px] items-center gap-2.5 rounded-2xl border border-[#ef1d42]/55 bg-[#070b16]/96 px-3 py-1.5 text-right text-white shadow-[0_14px_38px_rgba(239,29,66,0.28)] transition hover:-translate-y-0.5 hover:border-[#ff3b5c] sm:bottom-5 sm:left-6 sm:min-h-[52px] sm:gap-3 sm:px-3.5 sm:py-2"
         >
-          <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-[#ef1d42]/75 bg-black">
-            <Image
-              src={MASCOT_AVATAR_SRC}
-              alt="MR.ROBOT AI"
-              fill
-              sizes="36px"
-              className="object-cover object-[50%_20%] scale-110"
-              referrerPolicy="no-referrer"
-            />
+          <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#ef1d42]/75 bg-black">
+            {avatarSrc ? (
+              <Image
+                src={avatarSrc}
+                alt="آواتار رسمی دستیار هوشمند MR.ROBOT AI"
+                fill
+                sizes="36px"
+                className="object-cover object-[50%_18%] scale-110"
+                referrerPolicy="no-referrer"
+                onError={handleAvatarError}
+              />
+            ) : (
+              <Bot className="h-5 w-5 text-[#ef1d42]" aria-hidden="true" />
+            )}
           </span>
           <span className="flex flex-col leading-tight">
             <span className="flex items-center gap-1.5 text-xs font-extrabold tracking-wide text-white">
@@ -507,15 +521,20 @@ export function MrRobotChatPanel({
           {/* Panel Header */}
           <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[#ef1d42]/20 bg-[#0a0f1f]/98 px-4 py-3.5">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full border-2 border-[#ef1d42]/75 bg-black shadow-[0_0_18px_rgba(239,29,66,0.3)]">
-                <Image
-                  src={MASCOT_AVATAR_SRC}
-                  alt="آواتار رسمی MR.ROBOT"
-                  fill
-                  sizes="44px"
-                  className="object-cover object-[50%_20%] scale-110"
-                  referrerPolicy="no-referrer"
-                />
+              <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-[#ef1d42]/75 bg-black shadow-[0_0_18px_rgba(239,29,66,0.3)]">
+                {avatarSrc ? (
+                  <Image
+                    src={avatarSrc}
+                    alt="آواتار رسمی MR.ROBOT"
+                    fill
+                    sizes="44px"
+                    className="object-cover object-[50%_18%] scale-110"
+                    referrerPolicy="no-referrer"
+                    onError={handleAvatarError}
+                  />
+                ) : (
+                  <Bot className="h-5 w-5 text-[#ef1d42]" aria-hidden="true" />
+                )}
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -627,15 +646,20 @@ export function MrRobotChatPanel({
                   className={`flex items-start gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
                 >
                   {!isUser ? (
-                    <span className="relative mt-0.5 h-7 w-7 shrink-0 overflow-hidden rounded-full border border-[#ef1d42]/60 bg-black">
-                      <Image
-                        src={MASCOT_AVATAR_SRC}
-                        alt="MR.ROBOT"
-                        fill
-                        sizes="28px"
-                        className="object-cover object-[50%_20%] scale-110"
-                        referrerPolicy="no-referrer"
-                      />
+                    <span className="relative mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#ef1d42]/60 bg-black">
+                      {avatarSrc ? (
+                        <Image
+                          src={avatarSrc}
+                          alt="آواتار رسمی MR.ROBOT"
+                          fill
+                          sizes="28px"
+                          className="object-cover object-[50%_18%] scale-110"
+                          referrerPolicy="no-referrer"
+                          onError={handleAvatarError}
+                        />
+                      ) : (
+                        <Bot className="h-4 w-4 text-[#ef1d42]" aria-hidden="true" />
+                      )}
                     </span>
                   ) : null}
 

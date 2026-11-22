@@ -28,7 +28,10 @@ import {
   resolveCarouselScrollDelta,
 } from './carousel-helpers'
 
-const MASCOT_VISUAL_SRC = '/assets/aistudio/IMG_0544_1313509c.JPG'
+import {
+  isNextImageCompatibleSrc,
+  resolveSafeSectionImageUrl,
+} from '@/lib/mascot-media'
 
 const CATEGORY_ICONS: Record<AIProjectCategoryId, typeof Bot> = {
   'personal-ai-assistant': Bot,
@@ -58,17 +61,27 @@ const ACCENT_STYLES = {
 } as const
 
 type Props = {
+  imageUrl?: string
+  imageAlt?: string
   onStartProject: (categoryId?: AIProjectCategoryId) => void
   onOpenAssistant?: () => void
 }
 
 export function AIProjectBuilderSection({
+  imageUrl,
+  imageAlt,
   onStartProject,
   onOpenAssistant,
 }: Props) {
   const mobileTrackRef = useRef<HTMLDivElement | null>(null)
   const [activeMobileIdx, setActiveMobileIdx] = useState(0)
   const [navBounds, setNavBounds] = useState({ canPrev: false, canNext: true })
+  const resolvedImageUrl = resolveSafeSectionImageUrl(imageUrl)
+  const [imageFailed, setImageFailed] = useState(false)
+
+  useEffect(() => {
+    setImageFailed(false)
+  }, [resolvedImageUrl])
 
   const syncMobileTrack = useCallback(() => {
     const el = mobileTrackRef.current
@@ -232,18 +245,71 @@ export function AIProjectBuilderSection({
                     className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-l from-[#ef1d42]/80 via-[#8b5cf6]/90 to-[#38bdf8]/80"
                   />
 
-                  <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-2xl border border-[#ef1d42]/45 bg-black shadow-[0_0_32px_rgba(239,29,66,0.22)] sm:h-36 sm:w-36 lg:h-52 lg:w-full">
-                    <Image
-                      src={MASCOT_VISUAL_SRC}
-                      alt="مسکات رسمی MR.ROBOT AI"
-                      fill
-                      sizes="(max-width: 1024px) 144px, 420px"
-                      className="object-cover object-[50%_18%]"
-                      referrerPolicy="no-referrer"
-                    />
+                  <div
+                    data-testid="ai-builder-visual-frame"
+                    className="relative h-28 w-28 shrink-0 overflow-hidden rounded-2xl border border-[#38bdf8]/30 bg-[#050914] shadow-[0_0_32px_rgba(56,189,248,0.14)] sm:h-36 sm:w-36 lg:h-52 lg:w-full"
+                  >
+                    {resolvedImageUrl && !imageFailed ? (
+                      isNextImageCompatibleSrc(resolvedImageUrl) ? (
+                        <Image
+                          src={resolvedImageUrl}
+                          alt={imageAlt?.trim() || 'تصویر اختصاصی بخش MR.ROBOT AI'}
+                          fill
+                          sizes="(max-width: 1024px) 144px, 440px"
+                          className="object-cover object-center"
+                          referrerPolicy="no-referrer"
+                          onError={() => setImageFailed(true)}
+                        />
+                      ) : (
+                        <img
+                          src={resolvedImageUrl}
+                          alt={imageAlt?.trim() || 'تصویر اختصاصی بخش MR.ROBOT AI'}
+                          className="h-full w-full object-cover object-center"
+                          referrerPolicy="no-referrer"
+                          onError={() => setImageFailed(true)}
+                        />
+                      )
+                    ) : (
+                      <div
+                        data-testid="ai-builder-image-placeholder"
+                        className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-[#0b152c] via-[#070c1b] to-[#140814] p-3 text-center"
+                      >
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-0 opacity-30"
+                          style={{
+                            backgroundImage:
+                              'radial-gradient(circle at 50% 42%, rgba(239, 29, 66, 0.28), transparent 62%), radial-gradient(circle at 20% 80%, rgba(56, 189, 248, 0.24), transparent 55%)',
+                          }}
+                        />
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-0 opacity-[0.09]"
+                          style={{
+                            backgroundImage:
+                              'linear-gradient(to right, rgba(148, 163, 184, 0.6) 1px, transparent 1px), linear-gradient(to bottom, rgba(148, 163, 184, 0.6) 1px, transparent 1px)',
+                            backgroundSize: '20px 20px',
+                          }}
+                        />
+                        <div className="relative z-10 flex flex-col items-center gap-1.5 sm:gap-2">
+                          <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#38bdf8]/40 bg-[#0b1936]/90 text-[#38bdf8] shadow-[0_0_24px_rgba(56,189,248,0.22)] sm:h-14 sm:w-14">
+                            <Cpu className="h-5 w-5 sm:h-7 sm:w-7" />
+                          </span>
+                          <span
+                            dir="ltr"
+                            className="font-mono text-[10px] font-bold tracking-[0.18em] text-white/90 sm:text-xs"
+                          >
+                            MR.ROBOT AI
+                          </span>
+                          <span className="hidden text-[11px] text-[#95abd0] lg:inline">
+                            معماری هوشمند و اختصاصی
+                          </span>
+                        </div>
+                      </div>
+                    )}
                     <div
                       aria-hidden="true"
-                      className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#060b18]/80 via-transparent to-transparent"
+                      className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#060b18]/65 via-transparent to-transparent"
                     />
                   </div>
 

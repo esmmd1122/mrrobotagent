@@ -3,9 +3,9 @@ import { CMS_SECTION_IDS, type CmsSectionId, type SectionConfig, type WebsiteCon
 
 export const CMS_SECTION_LABELS: Record<CmsSectionId, string> = {
   intro: 'معرفی و هویت برند',
-  services: 'ویترین خدمات تخصصی',
+  services: 'بخش MR.ROBOT AI — سازنده پروژه هوش مصنوعی',
   subscriptions: 'فروشگاه تعاملی و محصولات',
-  ai: 'فناوری هوش مصنوعی (MR.ROBOT AI)',
+  ai: 'فناوری هوش مصنوعی (تجربه و سرویس‌ها)',
   other: 'خدمات اپل و موبایل',
   trust: 'اعتماد، فرآیند خرید و پشتیبانی',
   finale: 'بخش پایانی و دعوت به اقدام',
