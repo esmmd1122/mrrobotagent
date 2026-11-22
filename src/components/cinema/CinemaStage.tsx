@@ -242,29 +242,29 @@ export const CinemaStage = forwardRef<CinemaStageHandle, Props>(function CinemaS
       }
     }
 
-    // Cinema Studio Lighting Rig + signature crimson rim highlights for official MR.ROBOT identity
-    const hemiLight = new THREE.HemisphereLight(0x3a64b0, 0x050914, 0.85)
+    // Cinema Studio Lighting Rig tuned for dark obsidian hoodie + cinematic crimson rim highlights
+    const hemiLight = new THREE.HemisphereLight(0x4b5f84, 0x07040a, 0.72)
     scene.add(hemiLight)
 
-    const keyLight = new THREE.DirectionalLight(0xcbe0ff, 2.05)
-    keyLight.position.set(3.2, 5.2, 4.8)
+    const keyLight = new THREE.DirectionalLight(0xe6eefc, 1.95)
+    keyLight.position.set(2.8, 5.0, 5.2)
     scene.add(keyLight)
 
-    const rimCyan = new THREE.SpotLight(0x38bdf8, 7.5, 22, Math.PI / 3.2, 0.65, 1.3)
-    rimCyan.position.set(-4.4, 4.2, -3.4)
+    const rimCyan = new THREE.SpotLight(0x38bdf8, 4.2, 22, Math.PI / 3.2, 0.7, 1.4)
+    rimCyan.position.set(-4.6, 4.4, -3.6)
     scene.add(rimCyan)
 
-    const rimViolet = new THREE.PointLight(0x6366f1, 3.8, 16, 1.6)
-    rimViolet.position.set(4.5, 2.6, -2.8)
+    const rimViolet = new THREE.PointLight(0xef1d42, 4.8, 16, 1.5)
+    rimViolet.position.set(4.2, 2.2, -2.4)
     scene.add(rimViolet)
 
-    // Red cinematic rim light accentuating the black hood, headphones, zipper & buckles
-    const crimsonRim = new THREE.SpotLight(0xef1d42, 9.5, 18, Math.PI / 2.9, 0.72, 1.4)
-    crimsonRim.position.set(-3.2, 2.8, -2.4)
+    // Primary crimson back-left & right rim lights accentuating hood, headphones, backpack & crossed sleeves
+    const crimsonRim = new THREE.SpotLight(0xff1638, 13.5, 19, Math.PI / 2.6, 0.72, 1.3)
+    crimsonRim.position.set(-3.4, 2.6, -2.2)
     scene.add(crimsonRim)
 
-    const crimsonFill = new THREE.PointLight(0xef1d42, 2.8, 12, 1.7)
-    crimsonFill.position.set(-2.2, 0.6, 3.1)
+    const crimsonFill = new THREE.PointLight(0xff1a3c, 3.6, 13, 1.6)
+    crimsonFill.position.set(-2.4, 0.4, 2.9)
     scene.add(crimsonFill)
 
     const envRig = buildCinemaEnvironment(scene, { isMobile, isSoftwareGl })
@@ -658,9 +658,17 @@ export const CinemaStage = forwardRef<CinemaStageHandle, Props>(function CinemaS
         data-testid="mr-robot-stage"
         data-webgl-mount-id={mountInstanceId}
         data-assistant-state={assistantState}
+        data-render-mode={webglUnavailable ? 'static-fallback' : 'webgl-3d'}
       >
         {webglUnavailable ? (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-b from-[#07142e] via-[#040917] to-[#02050d]" />
+          <div className="relative flex h-full w-full items-start justify-center overflow-hidden bg-gradient-to-b from-[#09060e] via-[#04060f] to-[#02040a] pt-16 lg:items-center lg:justify-start lg:pl-20 lg:pt-0">
+            <img
+              src="/assets/aistudio/IMG_0544_1313509c.JPG"
+              alt="کاراکتر رسمی MR.ROBOT"
+              className="h-[300px] w-[300px] rounded-full object-cover object-top opacity-85 shadow-[0_0_90px_rgba(239,29,66,0.35)] lg:h-[440px] lg:w-[440px]"
+              referrerPolicy="no-referrer"
+            />
+          </div>
         ) : (
           <div ref={mountRef} className="h-full w-full" />
         )}

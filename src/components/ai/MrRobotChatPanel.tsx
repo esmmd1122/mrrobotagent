@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import type { AssistantAnimState } from '@/components/cinema/engine/character/assistant-state'
 
-const MASCOT_AVATAR_SRC = '/assets/aistudio/IMG_0486_28b8e7ca.PNG'
+const MASCOT_AVATAR_SRC = '/assets/aistudio/IMG_0544_1313509c.JPG'
 const SESSION_HISTORY_KEY = 'mrrobot_ai_chat_history_v1'
 const MAX_STORED_MESSAGES = 16
 const CLIENT_REQUEST_TIMEOUT_MS = 28_000
@@ -222,7 +222,22 @@ export function MrRobotChatPanel({
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
+    const onPointerDownOutside = (e: PointerEvent) => {
+      const target = e.target
+      if (!(target instanceof HTMLElement)) return
+      if (
+        target.closest('[data-ai-chat-panel="true"]') ||
+        target.closest('[data-ai-chat-trigger="true"]')
+      ) {
+        return
+      }
+      onClose()
+    }
     window.addEventListener('keydown', onKeyDown)
+    // Register click-outside slightly after mount so the opening click does not immediately close the panel
+    const outsideTimer = setTimeout(() => {
+      window.addEventListener('pointerdown', onPointerDownOutside, { passive: true })
+    }, 120)
 
     // Lock background scroll only on mobile sheet layout (< 768px)
     const isMobile = window.innerWidth < 768
@@ -240,7 +255,9 @@ export function MrRobotChatPanel({
     return () => {
       clearStateTimer()
       clearTimeout(focusTimer)
+      clearTimeout(outsideTimer)
       window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('pointerdown', onPointerDownOutside)
       if (isMobile) {
         document.body.style.overflow = prevOverflow
       }
@@ -435,15 +452,15 @@ export function MrRobotChatPanel({
           data-ai-chat-trigger="true"
           onClick={onOpen}
           aria-label="باز کردن گفت‌وگو با دستیار هوشمند MR.ROBOT AI"
-          className="fixed bottom-[max(18px,env(safe-area-inset-bottom))] left-4 z-40 flex min-h-[52px] items-center gap-3 rounded-2xl border border-[#ef1d42]/55 bg-[#070b16]/95 px-3.5 py-2 text-right text-white shadow-[0_14px_40px_rgba(239,29,66,0.28)] transition hover:-translate-y-0.5 hover:border-[#ff3b5c] sm:left-6"
+          className="fixed bottom-[max(14px,env(safe-area-inset-bottom))] left-3 z-40 flex min-h-[48px] items-center gap-2.5 rounded-2xl border border-[#ef1d42]/55 bg-[#070b16]/96 px-3 py-1.5 text-right text-white shadow-[0_14px_38px_rgba(239,29,66,0.28)] transition hover:-translate-y-0.5 hover:border-[#ff3b5c] sm:bottom-5 sm:left-6 sm:min-h-[52px] sm:gap-3 sm:px-3.5 sm:py-2"
         >
-          <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-[#ef1d42]/70 bg-black">
+          <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-[#ef1d42]/75 bg-black">
             <Image
               src={MASCOT_AVATAR_SRC}
               alt="MR.ROBOT AI"
               fill
               sizes="36px"
-              className="object-cover object-[42%_22%] scale-125"
+              className="object-cover object-[50%_20%] scale-110"
               referrerPolicy="no-referrer"
             />
           </span>
@@ -454,18 +471,18 @@ export function MrRobotChatPanel({
               </span>
               <Sparkles className="h-3.5 w-3.5 text-[#ef1d42]" />
             </span>
-            <span className="mt-0.5 text-[11px] text-[#a8bad8]">
+            <span className="mt-0.5 hidden text-[11px] text-[#a8bad8] sm:inline">
               برای گفت‌وگو کلیک کنید
             </span>
           </span>
-          <MessageSquare className="mr-1 h-4 w-4 text-[#ef1d42]" />
+          <MessageSquare className="mr-0.5 h-4 w-4 text-[#ef1d42]" />
         </button>
       ) : null}
 
       {/* Mobile backdrop for full-height sheet */}
       {open ? (
         <div
-          className="fixed inset-0 z-40 bg-black/55 md:hidden"
+          className="fixed inset-0 z-40 bg-black/60 md:hidden"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -479,7 +496,7 @@ export function MrRobotChatPanel({
           data-ai-chat-panel="true"
           data-testid="mr-robot-chat-panel"
           dir="rtl"
-          className="fixed inset-x-0 bottom-0 z-50 flex h-[84dvh] flex-col overflow-hidden rounded-t-3xl border border-[#ef1d42]/45 bg-[#060913]/98 text-white shadow-[0_24px_80px_rgba(0,0,0,0.84),0_0_32px_rgba(239,29,66,0.2)] backdrop-blur-xl md:inset-x-auto md:bottom-6 md:right-6 md:h-[min(620px,calc(100dvh-116px))] md:w-[min(420px,calc(100vw-48px))] md:rounded-2xl"
+          className="fixed inset-x-0 bottom-0 z-50 flex h-[82dvh] flex-col overflow-hidden rounded-t-3xl border border-[#ef1d42]/45 bg-[#060913]/98 text-white shadow-[0_24px_80px_rgba(0,0,0,0.86),0_0_32px_rgba(239,29,66,0.2)] md:inset-x-auto md:bottom-6 md:right-6 md:h-[min(620px,calc(100dvh-116px))] md:w-[min(420px,calc(100vw-48px))] md:rounded-2xl"
         >
           {/* Top crimson signature accent bar */}
           <div
@@ -496,7 +513,7 @@ export function MrRobotChatPanel({
                   alt="آواتار رسمی MR.ROBOT"
                   fill
                   sizes="44px"
-                  className="object-cover object-[42%_22%] scale-125"
+                  className="object-cover object-[50%_20%] scale-110"
                   referrerPolicy="no-referrer"
                 />
               </div>
@@ -616,7 +633,7 @@ export function MrRobotChatPanel({
                         alt="MR.ROBOT"
                         fill
                         sizes="28px"
-                        className="object-cover object-[42%_22%] scale-125"
+                        className="object-cover object-[50%_20%] scale-110"
                         referrerPolicy="no-referrer"
                       />
                     </span>

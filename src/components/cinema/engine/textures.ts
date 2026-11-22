@@ -111,38 +111,38 @@ export function createChestPrintTexture(): THREE.CanvasTexture {
 }
 
 /**
- * Draws the official MR.ROBOT sharp 3-pointed geometric crown emblem onto a 2D canvas.
+ * Draws the official MR.ROBOT sharp 3-pointed geometric crown emblem
+ * matching the uploaded reference image (flared outer peaks, tall center peak, clean base bar).
  */
 function drawOfficialCrownPath(
   ctx: CanvasRenderingContext2D,
   cx: number,
   cy: number,
   scale: number,
+  filled = false,
 ) {
   ctx.save()
   ctx.translate(cx, cy)
   ctx.scale(scale, scale)
 
-  // Three-pointed sharp geometric crown body
+  // Three-pointed sharp flared geometric crown body
   ctx.beginPath()
-  ctx.moveTo(-78, 34)
-  ctx.lineTo(-92, -38)
-  ctx.lineTo(-36, -2)
-  ctx.lineTo(0, -68)
-  ctx.lineTo(36, -2)
-  ctx.lineTo(92, -38)
-  ctx.lineTo(78, 34)
+  ctx.moveTo(-70, 28)
+  ctx.lineTo(-104, -36)
+  ctx.lineTo(-34, -4)
+  ctx.lineTo(0, -76)
+  ctx.lineTo(34, -4)
+  ctx.lineTo(104, -36)
+  ctx.lineTo(70, 28)
   ctx.closePath()
-  ctx.stroke()
+  if (filled) {
+    ctx.fill()
+  } else {
+    ctx.stroke()
+  }
 
-  // Inner sharp crown peak highlight
-  ctx.beginPath()
-  ctx.moveTo(-64, 18)
-  ctx.lineTo(64, 18)
-  ctx.stroke()
-
-  // Solid base bar under the crown
-  ctx.fillRect(-76, 46, 152, 16)
+  // Crisp base bar underneath crown
+  ctx.fillRect(-70, 42, 140, 15)
   ctx.restore()
 }
 
@@ -154,30 +154,45 @@ export function createEarCupCrownTexture(): THREE.CanvasTexture {
   const ctx = c.getContext('2d')!
 
   // Deep obsidian anodized ear-cup face
-  const grad = ctx.createRadialGradient(size / 2, size / 2, 24, size / 2, size / 2, size / 2)
-  grad.addColorStop(0, '#13161f')
-  grad.addColorStop(0.7, '#08090e')
-  grad.addColorStop(1, '#040508')
+  const grad = ctx.createRadialGradient(size / 2, size / 2, 18, size / 2, size / 2, size / 2)
+  grad.addColorStop(0, '#14151c')
+  grad.addColorStop(0.68, '#08080c')
+  grad.addColorStop(1, '#030306')
   ctx.fillStyle = grad
   ctx.fillRect(0, 0, size, size)
 
-  // Subtle concentric brushed micro-grooves
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)'
+  // Subtle concentric dark brushed grooves
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)'
   ctx.lineWidth = 2
-  for (let r = 36; r < 230; r += 16) {
+  for (let r = 34; r < 236; r += 16) {
     ctx.beginPath()
     ctx.arc(size / 2, size / 2, r, 0, Math.PI * 2)
     ctx.stroke()
   }
 
-  // Glowing crimson official crown emblem
-  ctx.shadowColor = '#ff163d'
-  ctx.shadowBlur = 18
-  ctx.strokeStyle = '#ff2348'
-  ctx.fillStyle = '#ff2348'
-  ctx.lineWidth = 14
+  // Inner soft crimson halo glow inside the ear cup
+  const rimGlow = ctx.createRadialGradient(size / 2, size / 2, 140, size / 2, size / 2, 250)
+  rimGlow.addColorStop(0, 'rgba(255, 20, 50, 0)')
+  rimGlow.addColorStop(0.75, 'rgba(255, 20, 50, 0.14)')
+  rimGlow.addColorStop(1, 'rgba(255, 40, 68, 0.42)')
+  ctx.fillStyle = rimGlow
+  ctx.fillRect(0, 0, size, size)
+
+  // Luminous neon-red official 3-pointed crown emblem centered on ear cup
+  ctx.shadowColor = '#ff173d'
+  ctx.shadowBlur = 24
+  ctx.strokeStyle = '#ff2244'
+  ctx.fillStyle = '#ff2244'
+  ctx.lineWidth = 15
   ctx.lineJoin = 'miter'
-  drawOfficialCrownPath(ctx, size / 2, size / 2 + 4, 1.05)
+  drawOfficialCrownPath(ctx, size / 2, size / 2 + 4, 1.0, false)
+
+  // Hotter inner core pass for razor crispness
+  ctx.shadowBlur = 0
+  ctx.strokeStyle = '#ff6b80'
+  ctx.fillStyle = '#ff546d'
+  ctx.lineWidth = 4
+  drawOfficialCrownPath(ctx, size / 2, size / 2 + 4, 1.0, false)
 
   const tex = new THREE.CanvasTexture(c)
   tex.anisotropy = 8
@@ -192,36 +207,58 @@ export function createSleevePatchTexture(): THREE.CanvasTexture {
   const ctx = c.getContext('2d')!
   ctx.clearRect(0, 0, 512, 512)
 
-  // Tactical woven black patch rectangle with crimson trim
-  ctx.fillStyle = '#090a0f'
-  ctx.strokeStyle = '#ef1d42'
-  ctx.lineWidth = 8
+  // Tactical matte-black stitched rectangular sleeve patch matching reference image
+  ctx.fillStyle = '#0a0b10'
+  ctx.strokeStyle = '#232631'
+  ctx.lineWidth = 6
   ctx.beginPath()
-  ctx.roundRect(42, 118, 428, 134, 14)
+  ctx.roundRect(34, 92, 444, 138, 8)
   ctx.fill()
   ctx.stroke()
 
-  // Subtle inner stitched border
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)'
-  ctx.lineWidth = 2
-  ctx.strokeRect(56, 132, 400, 106)
+  // Crisp crimson horizontal top & bottom accent bars inside the patch (exact reference detail)
+  ctx.fillStyle = '#e61938'
+  ctx.fillRect(54, 108, 404, 7)
+  ctx.fillRect(54, 206, 404, 7)
 
-  // Official MR.ROBOT sleeve typography
-  ctx.font = '800 62px "Space Grotesk", sans-serif'
+  // Official MR.ROBOT sleeve typography ("MR." crimson red, "ROBOT" crisp white)
+  ctx.font = '800 66px "Space Grotesk", sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillStyle = '#ef1d42'
-  ctx.fillText('MR.', 136, 186)
-  ctx.fillStyle = '#f4f7fd'
-  ctx.fillText('ROBOT', 318, 186)
+  ctx.fillStyle = '#f01c3c'
+  ctx.fillText('MR.', 134, 161)
+  ctx.fillStyle = '#f5f7fb'
+  ctx.fillText('ROBOT', 322, 161)
 
-  // Two parallel crimson tactical stripes below the sleeve patch
-  ctx.fillStyle = '#d81b3d'
-  ctx.fillRect(68, 298, 376, 22)
-  ctx.fillRect(68, 342, 376, 22)
+  // Two parallel crimson tactical stripes below the sleeve patch (matching reference)
+  ctx.fillStyle = '#df1838'
+  ctx.fillRect(58, 286, 396, 28)
+  ctx.fillRect(58, 344, 396, 28)
 
   const tex = new THREE.CanvasTexture(c)
   tex.anisotropy = 8
+  tex.colorSpace = THREE.SRGBColorSpace
+  return tex
+}
+
+export function createSoftRadialGlowTexture(
+  innerColor = 'rgba(255, 220, 226, 1)',
+  midColor = 'rgba(255, 24, 58, 0.58)',
+  outerColor = 'rgba(225, 10, 42, 0)',
+): THREE.CanvasTexture {
+  const size = 256
+  const c = document.createElement('canvas')
+  c.width = size
+  c.height = size
+  const ctx = c.getContext('2d')!
+  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
+  g.addColorStop(0, innerColor)
+  g.addColorStop(0.32, midColor)
+  g.addColorStop(0.7, outerColor)
+  g.addColorStop(1, 'rgba(0, 0, 0, 0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, size, size)
+  const tex = new THREE.CanvasTexture(c)
   tex.colorSpace = THREE.SRGBColorSpace
   return tex
 }
@@ -347,14 +384,14 @@ export function createStudioEnvironmentMap(renderer: THREE.WebGLRenderer): THREE
     envScene.add(m)
   }
 
-  // Overhead cool-steel key softbox
-  addSoftbox(10, 4, 0x9ec5ff, 2.8, [0, 8, 3], [0, 0, 0])
-  // Left-back crisp cyan rim strip
-  addSoftbox(3.5, 11, 0x38bdf8, 4.2, [-8, 3, -4], [0, 1, 0])
-  // Right-back subtle violet-indigo fill strip
-  addSoftbox(4, 10, 0x6366f1, 2.4, [8, 2.5, -3], [0, 1, 0])
-  // Subtle crimson studio accent strip low-right
-  addSoftbox(2.2, 6, 0xef1d42, 2.2, [6, 0.5, 4], [0, 1, 0])
+  // Overhead clean neutral-silver key softbox (keeps black hoodie fabric folds & metallic buckles crisp)
+  addSoftbox(9, 4, 0xdce6f5, 2.5, [1.5, 8, 4.5], [0, 0.4, 0])
+  // Left-back cinematic crimson rim strip (signature red rim light on hood, headphones & backpack)
+  addSoftbox(4.5, 11, 0xff1d42, 4.4, [-7.5, 2.4, -3.5], [0, 1, 0])
+  // Right-back crimson-steel secondary rim strip
+  addSoftbox(3.8, 10, 0xef1d42, 3.0, [7.5, 2.2, -3.2], [0, 1, 0])
+  // Subtle front-right cool edge fill for gunmetal buckle & zipper separation
+  addSoftbox(2.5, 6, 0x7da2d9, 1.4, [6, 1.5, 5], [0, 1, 0])
 
   const rt = pmrem.fromScene(envScene, 0.04)
   geometries.forEach((g) => g.dispose())

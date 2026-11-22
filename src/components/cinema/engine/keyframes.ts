@@ -64,13 +64,13 @@ function smoothstep(x: number, min: number, max: number): number {
  * Desktop (>= 1040px) uses these coordinates verbatim.
  */
 export const STORY_KEYFRAMES: readonly StoryKeyframe[] = [
-  // 0: Hero (RTL: MR.ROBOT on Left, Headline Right)
+  // 0: Hero (RTL: MR.ROBOT on Left, Headline Right — 3/4 stance matching official reference)
   {
-    cam: [0.15, 1.3, 5.95],
-    look: [-0.28, 1.02, 0],
+    cam: [0.18, 1.24, 5.88],
+    look: [-0.22, 0.86, 0],
     fov: 38,
-    charPos: [-1.42, -0.08, 0.25],
-    charRotY: 0.36,
+    charPos: [-1.14, -0.04, 0.28],
+    charRotY: 0.58,
     pose: {
       lShX: 0.12,
       lShZ: 0.14,
@@ -80,12 +80,12 @@ export const STORY_KEYFRAMES: readonly StoryKeyframe[] = [
       rElX: -0.64,
       orbScale: 0.001,
       orbPos: [0.85, 0.52, 0.72],
-      eyeGlow: 3.5,
+      eyeGlow: 3.6,
       lookBiasX: 0.12,
     },
-    fog: 0x030712,
+    fog: 0x05040b,
     rimC: 0x38bdf8,
-    rimV: 0x4f46e5,
+    rimV: 0xef1d42,
     stageScale: 0.001,
   },
   // 1: Brand Identity (MR.ROBOT glides Right & manipulates floating Glass Core)
@@ -136,12 +136,12 @@ export const STORY_KEYFRAMES: readonly StoryKeyframe[] = [
     rimV: 0x2563eb,
     stageScale: 0.001,
   },
-  // 3: Interactive 3D Marketplace (RTL: Catalog Right, 3D Product Window Left; MR.ROBOT observes & reacts)
+  // 3: Interactive 3D Marketplace (MR.ROBOT steps subtly into background so products take center stage)
   {
-    cam: [-0.22, 1.14, 5.8],
+    cam: [-0.22, 1.14, 6.2],
     look: [-0.48, 0.92, 0.45],
     fov: 38,
-    charPos: [2.28, -0.12, -1.25],
+    charPos: [2.85, -0.45, -2.9],
     charRotY: -0.58,
     pose: {
       lShX: -0.58,
@@ -294,12 +294,18 @@ export function evaluateStoryFrame(
   const isMobile = viewportWidth < 680
   const xScale = isCompact ? 0.14 : 1.0
 
-  // On mobile hero (scene 0), frame MR.ROBOT's hood, headphones, and glowing red eyes
-  // cleanly in the top visual window above the mobile hero card.
+  // On mobile/tablet hero (scene 0), frame MR.ROBOT's hood, red crown, headphones, glowing red eyes,
+  // and upper torso cleanly in the unobstructed upper window above the mobile hero copy card.
   const heroWeight = 1 - smoothstep(clamped, 0.15, 0.85)
-  const mobileLookYOffset = isMobile ? -0.78 * heroWeight : isCompact ? -0.32 * heroWeight : 0
-  const mobileCharYOffset = isMobile ? 0.24 * heroWeight : 0
-  const mobileCamZBoost = isMobile ? 1.85 : isCompact ? 1.15 : 0
+  const marketWeight =
+    smoothstep(clamped, 2.35, 2.95) * (1 - smoothstep(clamped, 3.35, 3.95))
+  const mobileLookYOffset = isMobile ? -0.66 * heroWeight : isCompact ? -0.38 * heroWeight : 0
+  const mobileCharYOffset = isMobile
+    ? 0.62 * heroWeight - 0.85 * marketWeight
+    : isCompact
+      ? 0.24 * heroWeight - 0.55 * marketWeight
+      : 0
+  const mobileCamZBoost = isMobile ? 1.55 + 1.4 * marketWeight : isCompact ? 0.95 : 0
 
   const cam: Vec3Tuple = [
     lerp(kfA.cam[0], kfB.cam[0], f) * xScale,
@@ -316,7 +322,7 @@ export function evaluateStoryFrame(
   const charPos: Vec3Tuple = [
     lerp(kfA.charPos[0], kfB.charPos[0], f) * xScale,
     lerp(kfA.charPos[1], kfB.charPos[1], f) + mobileCharYOffset,
-    lerp(kfA.charPos[2], kfB.charPos[2], f),
+    lerp(kfA.charPos[2], kfB.charPos[2], f) - (isMobile ? 1.8 * marketWeight : 0),
   ]
 
   const stagePresence = lerp(kfA.stageScale, kfB.stageScale, f)
@@ -324,9 +330,9 @@ export function evaluateStoryFrame(
   return {
     cam,
     look,
-    fov: lerp(kfA.fov, kfB.fov, f) + (isMobile ? 4 : 0),
+    fov: lerp(kfA.fov, kfB.fov, f) + (isMobile ? 3 : 0),
     charPos,
-    charRotY: lerp(kfA.charRotY, kfB.charRotY, f) * (isCompact ? 0.25 : 1.0),
+    charRotY: lerp(kfA.charRotY, kfB.charRotY, f) * (isCompact ? 0.65 : 1.0),
     pose: lerpPose(kfA.pose, kfB.pose, f),
     fogA: kfA.fog,
     fogB: kfB.fog,
